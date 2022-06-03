@@ -2,6 +2,10 @@
 #include <Stepper.h> 
 #define M4SERIAL Serial1
 
+//Constants
+const uint8_t OPCODE_MASK = 0b111;
+const int NUM_SERVOS = 2;
+
 //Struct for continuous servos
 struct ContServoStruct {
   Servo S;
@@ -19,9 +23,7 @@ struct StepperStruct {
 }
 
 //Servo declarations;
-int NUM_SERVOS = 12;
-ContServoStruct[NUM_SERVOS / 2] leftContServos;  //array of left servos
-ContServoStruct[NUM_SERVOS / 2] rightContServos; //array of right servos
+ServoStruct[NUM_SERVOS] servos;  //array of servos
 
 //Stepper declarations
 StepperStruct leftStepper;  //Left stepper object variable 
@@ -32,8 +34,10 @@ void setup()
 { 
   //Servo Initializations
   for(int i = 0; i < NUM_SERVOS / 2; i++){
-    leftservos[i].S.attach(i + 2);                                  // attaches the left servos starting on pin 2 (1 and 0 reserved for serial)
-    rightservos[i + NUM_SERVOS/2].S.attach(i + NUM_SERVOS / 2);     // attaches the right servos starting on pin (2 + num of left servos)
+    //Lower half: left servos
+    servos[i].S.attach(i + 2);                                       // attaches the left servos starting on pin 2 (1 and 0 reserved for serial)
+    //Upper half: right servos
+    servos[i + NUM_SERVOS/2].S.attach((i + NUM_SERVOS / 2) + 2);     // attaches the right servos starting on pin (2 + num of left servos)
   }
 
 
@@ -61,9 +65,9 @@ void setup()
 } 
  
 //Movement of standard servo
-void moveStdServo(ContServoStruct* servos, int servoIndex, int angle) {
-  servos[servoIndex].S.write(angle);
-  servos[servoIndex].pos = angle;     //pos recording not necessary for standard servos
+void moveStdServo(Servo& S, angle) {      //pass servo by reference
+  S.write(angle);
+  //pos recording not necessary for standard servos
   delay(10);
 }
 
@@ -100,8 +104,6 @@ void moveStepper(StepperStruct* motor, /*TODO what parameters do I need*/) {
 //Main function, runs in background
 void loop() 
 { 
-  if (M4SERIAL.available()) {
-    
     
     //TODO
     
@@ -115,8 +117,7 @@ void loop()
       https://docs.google.com/document/d/1cmILsPNfWTc15lZilK4X1TophI3p4mWjxnR8-Ee94GQ/edit
     */
 
-    
-    uint8_t opcode = M4SERIAL.read();
+    /*uint8_t opcode = M4SERIAL.read();
     // Fix all of this below .
     if (opcode == 0x02) {
       uint8_t byteservo = M4SERIAL.read();
@@ -124,16 +125,36 @@ void loop()
         uint8_t valueB = 0x3F && byteservo;
         int value = int(valueB);
         int angle = (180/64)*value;
-        moverightservo(angle);
+        //move right servo by angle;
       }
       if (byteservo & 0x80 != 0){
         uint8_t valueB = 0x3F && byteservo;
         int value = int(valueB);
         int angle = (180/64)*value;  // The binary value to pass is the angle*64/180
-        moveleftservo(angle);
+        //move left servo by angle;
       }
     }
+  }*/
+  
+  if (M4SERIAL.available() > 1) { //Requires opcode and at least one byte of data (depending on implementation)
+    uint8_t opcode = M4SERIAL.read();
+    if(opcode && OPCODE_MASK == 0x02){           
+      //TODO run servo
+      //TODO Get information on which servo (either by bitmasking opcode or getting an extra character)
+      //TODO calc angle from information
+      //moveStdServo(servos[servoNum], angle) //pass servo by pointer
+    }
+    else if(opcode && OPCODE_MASK == 0x03){
+      //TODO run stepper
+      //TODO find out how the stepper is wired on the m4 breakout
+    }
+    else if(opcode && OPCODE_MASK == 0x04){
+      //TODO send sensory data to m4
+      //when would we use this?
+      //Would we use this?
+    }
   }
+  
 }
 
   /** TEST BLOCK - use for debug if needed
