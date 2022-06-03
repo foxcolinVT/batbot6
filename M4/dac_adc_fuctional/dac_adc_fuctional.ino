@@ -42,7 +42,7 @@ constexpr int PAGE_SIZE = 4096;
 // multiple of 4.4
 constexpr int NUM_PAGES = (DURATION + 4.4) / 4.4;
 
-__attribute__ ((section(".dmabuffers"), used)) static uint16_t dac_buffer[num_dac_samples], adc_buffer[2][4096];
+//__attribute__ ((section(".dmabuffers"), used)) static uint16_t dac_buffer[num_dac_samples], adc_buffer[2][4096];
 
 /*
  * DMA buffers
@@ -53,14 +53,14 @@ __attribute__ ((section(".dmabuffers"), used)) static uint16_t dac_buffer[num_da
 // FYI --- A buffer is a pre-allocated set of memory (an array), with a name, for example "my_buffer", that you can fill with data.
 __attribute__ ((section(".dmabuffers"), used))   // This ".dmabuffers" thing is from the Adafruit zeroDMA library
 uint16_t left_in_buffers[NUM_PAGES][PAGE_SIZE],  // Here 3 buffers (arrays) are built. Each one is an array of unsigned integer, and the array's size is NUM_PAGES x PAGE_SIZE
-  right_in_buffers[NUM_PAGES][PAGE_SIZE];
+  right_in_buffers[NUM_PAGES][PAGE_SIZE], dac_buffer[num_dac_samples];
 
 //temp
 char outBufferL[4];
 char outBufferR[4];
 
 // Index of the page currently being accessed
-uint16_t left_in_index, right_in_index, out_index;  //These essentially function as counters.
+uint16_t left_in_index, right_in_index;  //These essentially function as counters.
 
 // ZeroDMA job instances for both ADCs and the DAC
 // Here, three "ZeroDMA jobs" are initialized. The 'jobs' aren't started here, but later on they will be used to transfer data from the microphones to the UART.
@@ -72,10 +72,6 @@ void setup() {
   //JETSON_SERIAL.begin(128000);  // only use this line if you are using wires to hook up the jetson.
   // TVCU_SERIAL.begin(9600);
   delay(2000);
-
-  //pinMode(5, OUTPUT);
-  //pinMode(6, OUTPUT);
-  //pinMode(7, OUTPUT);
 
   generate_chirp();
   
@@ -89,7 +85,7 @@ void setup() {
       right_in_buffers[i][j] = 0;
       //out_buffers[i][j] = i * 500;
     }
-  left_in_index = right_in_index = out_index = 0; 
+  left_in_index = right_in_index = 0; 
 
   // Initialize peripherals -> These functions are defined at the bottom. Essentially just setting up the board's peripherals
   clock_init();
@@ -97,7 +93,6 @@ void setup() {
   adc_init(A3, ADC1);
   dac_init();
   dma_init();
-  timer_init();
 
   // Trigger both ADCs to enter free-running mode
   ADC0->SWTRIG.bit.START = 1;
@@ -123,6 +118,13 @@ void loop() {
     //JETSON_SERIAL.write("test\n");
     // If the Jetson is sending any data over...
     uint8_t opcode = JETSON_SERIAL.read();                                         // ... Read in the data that the Jetson sending over
+
+    if(opcode!=NULL)
+    {
+      Serial.write(opcode);
+      Serial.println(data_ready);
+    }
+    
     // Start run
     if (opcode == 0x10) {                                                   // If the M4 send over the OPCODE "0x10"...
 
@@ -130,32 +132,27 @@ void loop() {
     //out_dma.loop(true);
       
       data_ready = false;                                                   // Start the counters at 0
-      left_in_index = right_in_index = out_index = 0;
+      left_in_index = right_in_index = 0;
 
 
       // NOTE: Below, the "DMA->CTRL.bit.DMAENABLE = 0" syntax writes the VALUE 0 to the REGISTER POSITION "DMAENABLE" of the REGISTER "CTRL" of the "DMAC" PERIPHERAL
       // Similar syntax can be used to write to any other register, e.g. DAC->CTRLA.bit.ENABLE = 1 or something...
       // The names of the registers can be found in the SAMD51 datasheet
-      DAC->CTRLA.bit.ENABLE = 1;
+      //DAC->CTRLA.bit.ENABLE = 1;
       // Start all DMA jobs
       DMAC->CTRL.bit.DMAENABLE = 0;                                         // Temporarily disables the DMA so that it's properties can be rewritten. 
       //out_dma.startJob();                                                   // This line starts the DMA job for the output buffer, i.e. the data to send to the speaker
       //DMAC->SWTRIGCTRL.reg |= (1 << 0);
       //DMAC->Channel[2].CHCTRLA.bit.ENABLE = 1;
 
-      out_dma.startJob();
+      //out_dma.startJob();
       left_in_dma.startJob();                                               // This line starts the DMA job for the buffer "left_in_dma" , i.e. the left ear mic.
       right_in_dma.startJob(); 
       
-      // This line starts the DMA job for the buffer "right_in_dma"
-      //delay(100000);
-      //DMAC->Channel[2].CHCTRLA.bit.ENABLE = 0;
       DMAC->CTRL.bit.DMAENABLE = 1;                                         // Now that DMA is configured, re-enable it 
-      //DMAC->Channel[2].CHCTRLA.bit.ENABLE = 0;
     }
     // Check run status                                                     
     else if (opcode == 0x20) {                                              // If the incoming OPCODE is '0x20' then the M4 will return the 'data_ready' flag (true/false)
-
       JETSON_SERIAL.write(data_ready);                                             // Outputs TRUE or FALSE to the python script
     }
     // Retreive left buffer                                                 // Once the OPCODE '0x30' is recieved, the M4 will send the left ear's data (contained in the buffer)
@@ -219,18 +216,20 @@ void loop() {
     data_ready = true;                                                     // If the data wasn't ready but the 3 indices have reached their limits, then the data is ready...
                                                                            // ... So data_ready is set to TRUE. This will trigger the M4 to ask for the data that is now done...
                                                                            // ... being collected.
-    left_in_index = right_in_index = out_index = 0;                        // This line resets all of the indices to 0
+    left_in_index = right_in_index = 0;                        // This line resets all of the indices to 0
   }
-//  else
-//  {
-//   sprintf(outBufferL, "l:%u", left_in_index);
-//   sprintf(outBufferR, "r:%u", right_in_index);
-//    JETSON_SERIAL.write("\n");
-//    JETSON_SERIAL.write(outBufferL);
-//    JETSON_SERIAL.write("\n");
-//    JETSON_SERIAL.write(outBufferR);
-//    JETSON_SERIAL.write("\n"); 
-//  }
+  else
+  {
+   sprintf(outBufferL, "l:%u", left_in_index);
+   sprintf(outBufferR, "r:%u", right_in_index);
+    JETSON_SERIAL.write("\n");
+    JETSON_SERIAL.write(outBufferL);
+    JETSON_SERIAL.write("\n");
+    JETSON_SERIAL.write(outBufferR);
+    JETSON_SERIAL.write("\n"); 
+    //Serial.print("test");
+    delay(500);
+  }
 }
 
 
@@ -248,9 +247,6 @@ void dma_right_complete(Adafruit_ZeroDMA *dma) {
   right_in_index++;
 }
 
-void dma_out_complete(Adafruit_ZeroDMA *dma) {
-  out_index++;
-}
 
 
 /*
@@ -293,55 +289,48 @@ void timer_init() {
 }
 
 void dma_init() {
-  static Adafruit_ZeroDMA left_in_dma, right_in_dma, out_dma;
-  
+  //static Adafruit_ZeroDMA left_in_dma, right_in_dma, out_dma;
+  static DmacDescriptor *left_in_descs[NUM_PAGES], *right_in_descs[NUM_PAGES];
+  // Create left ADC channel DMA job
   {
     left_in_dma.allocate();
   
-    auto desc = left_in_dma.addDescriptor(
-      (void *)(&ADC0->RESULT.reg),                      // Source -- Where we are saving conversion value
-      adc_buffer[0],                                    // Destination
-      2048,                                             // Count
-      DMA_BEAT_SIZE_HWORD,                              // Size
-      false,                                            // ??
-      true);                                            // ??
-    desc->BTCTRL.bit.BLOCKACT = DMA_BLOCK_ACTION_INT;
-
-    desc = left_in_dma.addDescriptor(
-      (void *)(&ADC0->RESULT.reg),
-      &adc_buffer[0][2048],
-      2048,
-      DMA_BEAT_SIZE_HWORD,
-      false,
-      true);
-    desc->BTCTRL.bit.BLOCKACT = DMA_BLOCK_ACTION_INT;
+    for (auto i = 0; i < NUM_PAGES; i++) {
+      left_in_descs[i] = left_in_dma.addDescriptor(
+        (void *)(&ADC0->RESULT.reg),
+        left_in_buffers[i],
+        PAGE_SIZE,
+        DMA_BEAT_SIZE_HWORD,
+        false,
+        true);
+      left_in_descs[i]->BTCTRL.bit.BLOCKACT = DMA_BLOCK_ACTION_INT;
+    }
 
     //left_in_dma.loop(true);
-    left_in_dma.setTrigger(0x44);
+    left_in_dma.setTrigger(0x44); // Trigger on ADC0 read completed
     left_in_dma.setAction(DMA_TRIGGER_ACTON_BEAT);
     left_in_dma.setCallback(dma_left_complete);
-  
-    left_in_dma.startJob();
   }
 
+  // Create right ADC channel DMA job
   {
     right_in_dma.allocate();
   
-    auto desc = right_in_dma.addDescriptor(
-      (void *)(&ADC1->RESULT.reg),
-      adc_buffer[1],
-      4096,
-      DMA_BEAT_SIZE_HWORD,
-      false,
-      true);
-    desc->BTCTRL.bit.BLOCKACT = DMA_BLOCK_ACTION_INT;
+    for (auto i = 0; i < NUM_PAGES; i++) {
+      right_in_descs[i] = right_in_dma.addDescriptor(
+        (void *)(&ADC1->RESULT.reg),
+        right_in_buffers[i],
+        PAGE_SIZE,
+        DMA_BEAT_SIZE_HWORD,
+        false,
+        true);
+      right_in_descs[i]->BTCTRL.bit.BLOCKACT = DMA_BLOCK_ACTION_INT;
+    }
 
-    //right_in_dma.loop(true);      //idk yet
-    right_in_dma.setTrigger(0x46);
+    //right_in_dma.loop(true);
+    right_in_dma.setTrigger(0x46); // Trigger on ADC1 read completed
     right_in_dma.setAction(DMA_TRIGGER_ACTON_BEAT);
     right_in_dma.setCallback(dma_right_complete);
-  
-    right_in_dma.startJob();
   }
 
   {
@@ -360,7 +349,7 @@ void dma_init() {
     out_dma.setTrigger(0x16);
     out_dma.setAction(DMA_TRIGGER_ACTON_BEAT);
     out_dma.setCallback(stop_callback);
-    out_dma.startJob();
+    //out_dma.startJob();
     //delay(10000);
     //DMAC->Channel[2].CHCTRLA.bit.ENABLE = 0;
     //delay(1000);
