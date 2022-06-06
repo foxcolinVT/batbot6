@@ -238,14 +238,14 @@ class BatBot:
 
         if (inputPulse >= 0) and (inputPulse <= 127):
             #--------------- Choosing which stepper motor to drive for the stepper motors -----------------
-            if which is 'A': # Left motor
+            if which == 'A': # Left motor
                 # Code must be send in first byte
                 print("Moving Right Motor")
                 #TODO make the direction code work
                 direction = bin(direction) << 16
                 outputTwoBytes +=  (bin(inputPulse) << 8) + direction
 
-            elif which is 'B': # Right motor
+            elif which == 'B': # Right motor
                 # Code must be send in second byte
                 print("Moving Left Motor")
                 direction = bin(direction) << 8
@@ -260,28 +260,28 @@ class BatBot:
         for element in range(0, len(inputString)):
             print(inputString[element])
             which = inputString[element]
-            if which is 'A':
+            if which == 'A':
                 print("Moving A")
                 whichVale = 0b00000001
-            elif which is 'B':
+            elif which == 'B':
                 print("Moving B")
                 whichVale = 0b00000010
-            elif which is 'C':
+            elif which == 'C':
                 print("Moving C")
                 whichVale = 0b00000100
-            elif which is 'D':
+            elif which == 'D':
                 print("Moving D")
                 whichVale = 0b00001000
-            elif which is 'E':
+            elif which == 'E':
                 print("Moving E")
                 whichVale = 0b00010000
-            elif which is 'F':
+            elif which == 'F':
                 print("Moving F")
                 whichVale = 0b00100000
-            elif which is 'G':
+            elif which == 'G':
                 print("Moving G")
                 whichVale = 0b01000000
-            elif which is 'H':
+            elif which == 'H':
                 print("Moving H")
                 whichVale = 0b10000000
         #--------------------------------------------------------------------
