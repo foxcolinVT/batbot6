@@ -1,4 +1,22 @@
 <!-- Stylesheet for batbot web GUI EBECF0-->
+#headerbar {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	height: 60px;
+	width: 100%;
+	display: flex;
+}
+
+#headerbar .logo {
+	width: 250px;
+	font-size: 25px;
+	font-weight: 700;
+	padding: 0 25px;
+	color: white;
+}
+
 #main {
 	transition: margin-left .5s;
 	padding: 16px; 
@@ -22,7 +40,7 @@
 	position: fixed;
 	background-color: #EBECF0;
 	z-index: 1;
-	top: 0;
+	top: 60;
 	left: 0;
 	border-right: 1px solid gray;
 	overflow-x: hidden;
@@ -46,10 +64,10 @@
 
 .slider {
 	-webkit-appearance: none;
-	appearance: none;
-	width: 80%;
 	margin-left: 10%;
+	width: 80%;
 	height: 10px;
+	border-radius: 5px;
 	background: #D3D3D3;
 	outline: none;
 	opacity: 0.7;
@@ -64,8 +82,19 @@
 .slider::-webkit-slider-thumb {
 	-webkit-appearance: none; 
 	appearance: none;
-	width: 10px; 
-	height: 10px; 
+	width: 15px; 
+	height: 15px; 
+	border-radius: 50%;
 	background: #000000; 
 	cursor: pointer; 
+}
+
+.buttonBlock {
+	margin-left: 50px;
+}
+
+.btn-primary {
+	margin-right: 20px;
+	background-color: maroon !important;
+	border-color: #840000 !important;
 }
