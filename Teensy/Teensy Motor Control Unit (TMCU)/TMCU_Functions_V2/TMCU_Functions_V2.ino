@@ -37,18 +37,18 @@ Servo mouthC;  //Mouth servo C
 
 //Stepper declarations
 struct StepperStruct{
-  Stepper S = Stepper(STEPS, 23, 22, 21, 20);     //Default values to make arduino happy. Will be overwritten in setup
+  Stepper S = Stepper(STEPS, 23, 22, 21, 20);         //Default values to make arduino happy. Will be overwritten in setup
   int pos = 0;
 };
 
-StepperStruct leftStepper;   //Declare stepper struct
-StepperStruct rightStepper;   //Declare stepper struct
+StepperStruct leftStepper;                            //Declare stepper struct
+StepperStruct rightStepper;                           //Declare stepper struct
 
 void setup() 
 { 
   //Servo Initializations
   for(int i = 0; i < NUM_SERVOS; i++){
-    servoList[i].attach(i+2);   //Starts servo pins at pin 2 (pins 0 and 1 are used for serial)
+    servoList[i].attach(i+2);                         //Starts servo pins at pin 2 (pins 0 and 1 are used for serial)
   }
 
   //Stepper Initializations
@@ -56,15 +56,15 @@ void setup()
   leftStepper.S.setSpeed(STEPPER_SPEED);
   rightStepper.S = Stepper(STEPS, 23, 22, 21, 20);
   
-  Serial.begin(9600);                               //Used for debugging
-  M4SERIAL.begin(9600);                             //Used for communication with M4 
+  Serial.begin(9600);                                 //Used for debugging
+  M4SERIAL.begin(9600);                               //Used for communication with M4 
 } 
 
 //Movement of servo
 //Passes servo by reference, passes 1 byte of position data
 void moveServo(uint8_t opcode, uint8_t data){
-  int index = (int)((opcode & SERVO_INDEX_MASK) >> 4);     //Get rid of opcode, shift all the way down to get index
-  servoList[index].write((int)data);                       //Move servo at "index" to position indicated by "data"
+  int index = (int)((opcode & SERVO_INDEX_MASK) >> 4);//Get rid of opcode, shift all the way down to get index
+  servoList[index].write((int)data);                  //Move servo at "index" to position indicated by "data"
 }
 
 //Movement of stepper motor
@@ -72,20 +72,20 @@ void moveServo(uint8_t opcode, uint8_t data){
 void moveStepper(uint8_t opcode, uint8_t data) {
     //Decide which direction to move
     //TODO update m4 and Jetson to use 0bX1XXXXXX as left and 0bX0XXXXXX as right
-    int stepsToMove = data;                               //Defaults to moving in the positive (left) direction
+    int stepsToMove = data;                           //Defaults to moving in the positive (left) direction
     if((opcode & STEPPER_DIRECTION_MASK) != STEPPER_DIRECTION_MASK){
-      stepsToMove = -stepsToMove;                         //If bit is 0, move in the negative (right) direction
+      stepsToMove = -stepsToMove;                     //If bit is 0, move in the negative (right) direction
     }
 
     //Decide which motor to move
     //TODO update m4 and Jetson to use 0b1XXXXXXX as left and 0b0XXXXXXX as right
     if((opcode & STEPPER_LR_MASK) == STEPPER_LR_MASK){           
-      leftStepper.S.step(stepsToMove);                    //Move TODO check that it indeed moves left at amount indicated
-      leftStepper.pos = leftStepper.pos + stepsToMove;          //update current position  
+      leftStepper.S.step(stepsToMove);                //Move TODO check that it indeed moves left at amount indicated
+      leftStepper.pos = leftStepper.pos + stepsToMove;//update current position  
     }
     else {                                        
-      rightStepper.S.step(stepsToMove);                   //Move TODO check that it indeed moves right at amount indicated
-      rightStepper.pos = rightStepper.pos + stepsToMove;         //update current position  
+      rightStepper.S.step(stepsToMove);               //Move TODO check that it indeed moves right at amount indicated
+      rightStepper.pos = rightStepper.pos + stepsToMove;  //update current position  
     }
   
   /*
@@ -114,16 +114,16 @@ void loop()
   if (M4SERIAL.available() > 1) {             //Requires 2 bytes- opcode and data
     uint8_t opcode = M4SERIAL.read();         //Upper 4 bits of this opcode describe which motor to move (for a max of 16 motors). Lower 4 bits reserved for instructions
     if((opcode & OPCODE_MASK) == 0x02){
-      uint8_t data = M4SERIAL.read();
+      uint8_t data = M4SERIAL.read();         //Only retrieve next byte if opcode is valid
       moveServo(opcode, data);
     }
     else if((opcode & OPCODE_MASK) == 0x03){
-      uint8_t data = M4SERIAL.read();
+      uint8_t data = M4SERIAL.read();         //Only retrieve next byte if opcode is valid
       moveStepper(opcode, data);
     }
     else if((opcode & OPCODE_MASK) == 0x04){
       //Send sensory data to m4
-      //Legacy opcode. No sensory data to get afaik.
+      //Legacy opcode. No sensory data to get as far as I know.
     }
   } 
 }
