@@ -112,7 +112,7 @@ void loop()
     uint8_t opcode = M4SERIAL.read();
     uint8_t data = M4SERIAL.read();
     if(opcode && OPCODE_MASK == 0x02){           
-      if(data
+      //if(data
       //TODO run servo
       //TODO Get information on which servo (either by bitmasking opcode or getting an extra character)
       //TODO calc angle from information
