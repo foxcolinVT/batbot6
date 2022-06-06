@@ -1,0 +1,40 @@
+<!-- Stylesheet for batbot web GUI -->
+#main {
+	transition: margin-left .5s;
+	padding: 16px;
+}
+
+#chartContainer {
+	height: 370px;
+	width: 30%;
+	margin: 50px;
+	margin-top: 0px;
+}
+
+#sideBar {
+	height: 100%;
+	width: 0;
+	position: fixed;
+	z-index: 1;
+	top: 0;
+	left: 0;
+	background-color: #CCCC;
+	overflow-x: hidden;
+	transition: 0.5s;
+	padding-top: 60px;
+}
+
+#sideBar #closeButton {
+	position: absolute;
+	font-size: 30px;
+	cursor: pointer;
+	top: 10px;
+	right: 25px;
+	font-size: 36px;
+	margin-left: 50px;
+}
+
+#openButton {
+	font-size: 30px;
+	cursor: pointer;
+}
