@@ -1,10 +1,14 @@
 #include <Servo.h> 
 #include <Stepper.h> 
-#define M4SERIAL Serial1
+#define M4SERIAL Serial1    //Bugs out if the teensy software isn't installed in the 
 
 //Constants
 const uint8_t OPCODE_MASK = 0b111;
 const int NUM_SERVOS = 2;
+const int STEPS = 200;
+const int STEPPER_SPEED  = 60;
+const uint8_t STEPPER_LR_MASK = 0b10000000; //Masks for whether we're talking about left or right stepper motor
+
 /*
 //Struct for continuous servos
 struct ContServoStruct {
@@ -13,24 +17,20 @@ struct ContServoStruct {
 }
 */
 
-struct StepperStruct {
-  Stepper S;                //might be unnecessary if the m4 drives the steppers
+//Stepper declarations
+struct StepperStruct{
+  Stepper S = Stepper(STEPS, 23, 22, 21, 20);     //Default values to make arduino happy. Will be overwritten
   int pos = 0;
-  //The original code had these three pins. I don't know if this is right. 
-  //While the actual driver requires 5-6 pins input, the M4 shield might only need data from 3 pins
-  int stepPin;              //pulse pin
-  int dirPin;               //direction pin
-  int enPin;                //enable pin
 };
 
-//Stepper declarations
-//StepperStruct leftStepper;  //Left stepper object variable 
-//StepperStruct rightStepper; //Right stepper object variable
+StepperStruct leftStepper;   //Declare stepper struct
+StepperStruct rightStepper;   //Declare stepper struct
 
 //servo declarations
-Servo[NUM_SERVOS] servoList;  //array of servos
+Servo servoList[NUM_SERVOS];  //array of servos
 
-servoList[0] = Servo earRA;  //Right ear servo A
+/*
+Servo earRA;  //Right ear servo A
 Servo earRB; //Right ear servo B
 Servo earRC;  //Right ear servo C
 Servo earRD; //Right ear servo D
@@ -43,12 +43,22 @@ Servo earLD; //Left ear servo D
 Servo mouthA;  //Mouth servo A
 Servo mouthB; //Mouth servo B
 Servo mouthC;  //Mouth servo C
-
+*/
 
 void setup() 
 { 
+  //Stepper Initializations
+  leftStepper.S = Stepper(STEPS, 19, 18, 17, 16);
+  leftStepper.S.setSpeed(STEPPER_SPEED);
+  rightStepper.S = Stepper(STEPS, 23, 22, 21, 20);
+  
+  
   //Servo Initializations
-  earRA.attach(1);
+  for(int i = 0; i < NUM_SERVOS; i++){
+    servoList[i].attach(i+2);   //Starts servo pins at pin 2 (pins 0 and 1 are used for serial)
+  }
+  
+  /*earRA.attach(1);
   earRB.attach(1);
   earRC.attach(1);
   earRD.attach(1);
@@ -60,78 +70,34 @@ void setup()
 
   mouthA.attach(1);
   mouthB.attach(1);
-  mouthC.attach(1);
-
-  //Stepper initializations
-  //defines pins for left stepper motors
-  leftStepper.stepPin = 18;    //PUL -Pulse
-  leftStepper.dirPin = 19;     //DIR -Direction
-  leftStepper.enPin =  20;     //ENA -Enable
-  //defines pins for right stepper motors
-  rightStepper.stepPin = 21;   //PUL -Pulse
-  rightStepper.dirPin = 22;    //DIR -Direction
-  rightStepper.enPin = 23;     //ENA -Enable
-
-  //Set pin modes for steppers
-  pinMode(leftStepper.stepPin,OUTPUT); 
-  pinMode(leftStepper.dirPin,OUTPUT);
-  pinMode(leftStepper.enPin,OUTPUT);
-  digitalWrite(leftStepper.enPin,LOW);
-  pinMode(rightStepper.stepPin,OUTPUT); 
-  pinMode(rightStepper.dirPin,OUTPUT);
-  pinMode(rightStepper.enPin,OUTPUT);
-  digitalWrite(right.enPin,LOW);
+  mouthC.attach(1);*/
   
-  M4SERIAL.begin(9600);
+  Serial.begin(9600);                         //Used for debugging
+  //commented out for debug
+  M4SERIAL.begin(9600);                       //Used for communication with M4 
 } 
 
 //Movement of stepper motor
-void moveStepper(StepperStruct* motor, /*TODO what parameters do I need*/) {
-  
-  //bitwise of beginning to determine direction
-  for(int x = 0; x < 200; x++) {
-    digitalWrite(LstepPin,HIGH);
-    delayMicroseconds(500);
-    digitalWrite(LstepPin,LOW);
-    delayMicroseconds(500);
-  }
+void moveStepper(StepperStruct* motor, uint8_t posD) {
+  posD = map(posD, 0, 0b01111111, 0, STEPS);  //map desired position from 0 to 200
+  motor->S.step(posD - motor->pos);           //Move motor by difference between current and desired pos
+  motor->pos = posD;                          //update current position
+
   /*
-  //TODO make sense of this
-  //Enables the motor direction to move
-  digitalWrite(LdirPin,HIGH);
-  //Makes 200 Pulses for making one full cycle rotation
-  for(int x = 0; x < 200; x++){
-    digitalWrite(LstepPin,HIGH); 
-    delayMicroseconds(500); 
-    digitalWrite(LstepPin,LOW); 
-    delayMicroseconds(500); 
-  }
-  
-  //One second delay 
-  delay(1000);
+  Note that this is very sensitive to change since there is no positional feedback
+  from the steppers to the teensy.
 
-  //Changes the rotations direction
-  digitalWrite(LdirPin,LOW);
-  // Makes 200 pulses for making one full cycle rotation
-  for(int x = 0; x < 200; x++) {
-    digitalWrite(LstepPin,HIGH);
-    delayMicroseconds(500);
-    digitalWrite(LstepPin,LOW);
-    delayMicroseconds(500);
-  }
-  
-  //One second delay
-  delay(1000); 
-
-  */
+  This could be remedied by either getting motors with feedback or by 
+  engineering a reference point for the steppers to index off of.
+  (like the end of travel for 3D printers).
+*/
 }
 
 //Main function, runs in background
 void loop() 
 { 
     
-    //TODO
-    
+    //TODO  
     
     /*
       Arduino serial allows up to 63 characters. 
@@ -144,7 +110,9 @@ void loop()
   
   if (M4SERIAL.available() > 1) { //Requires opcode and at least one byte of data (depending on implementation)
     uint8_t opcode = M4SERIAL.read();
+    uint8_t data = M4SERIAL.read();
     if(opcode && OPCODE_MASK == 0x02){           
+      if(data
       //TODO run servo
       //TODO Get information on which servo (either by bitmasking opcode or getting an extra character)
       //TODO calc angle from information
