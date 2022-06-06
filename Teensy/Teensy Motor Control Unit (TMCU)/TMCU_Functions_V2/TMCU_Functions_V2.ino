@@ -63,12 +63,8 @@ void setup()
 //Movement of servo
 //Passes servo by reference, passes 1 byte of position data
 void moveServo(uint8_t opcode, uint8_t data){
-  //TODO decide what servo
-  int posD = 0; //TODO
-  int index = 1; //TODO 
-  //TODO Move servo
-  
-  servoList[index].write(posD);
+  int index = (int)((opcode & SERVO_INDEX_MASK) >> 4);     //Get rid of opcode, shift all the way down to get index
+  servoList[index].write((int)data);                       //Move servo at "index" to position indicated by "data"
 }
 
 //Movement of stepper motor
