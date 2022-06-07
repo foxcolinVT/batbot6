@@ -1,3 +1,11 @@
+/*
+ *  Batbot 6 Teensy Motor Control Unit (TMCU)
+ *  Controls Servos and Steppers off of a Teensy 4.0
+ *  Download teensy software at https://www.pjrc.com/teensy/td_download.html
+ *  
+ *  Adapted by Maximilien Engel 6/7/22  
+ */
+
 #include <Servo.h> 
 #include <Stepper.h> 
 #define M4SERIAL Serial1    //Bugs out if the teensy software isn't installed
@@ -9,7 +17,7 @@ const uint8_t STEPPER_LR_MASK = 0b10000000;         //Mask for isolating l/r ste
 const uint8_t STEPPER_DIRECTION_MASK = 0b01000000;  //Mask for isolating l/r motor direction info from opcode
 
 //Constants
-const int SERVO_MAX  = 180;                         //Serrvo max range of motion
+const int SERVO_MAX  = 180;                         //Servo max range of motion
 const int NUM_SERVOS = 11;
 const int STEPS = 200;                              //Stepper number of steps
 const int STEPPER_SPEED  = 60;
@@ -62,7 +70,6 @@ void setup()
 
 //Movement of servo
 //Passes servo by reference, passes 1 byte of position data
-//Since we're no longer mapping to 
 void moveServo(uint8_t opcode, uint8_t data){
   int index = (int)((opcode & SERVO_INDEX_MASK) >> 4);//isolate index
   servoList[index].write((int)data);                  //Move servo at "index" to position indicated by "data"
