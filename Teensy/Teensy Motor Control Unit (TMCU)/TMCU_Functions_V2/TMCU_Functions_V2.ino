@@ -1,22 +1,30 @@
+/*
+ *  Batbot 6 Teensy Motor Control Unit (TMCU)
+ *  Controls Servos and Steppers off of a Teensy 4.0
+ *  Download teensy software at https://www.pjrc.com/teensy/td_download.html
+ *  
+ *  Adapted by Maximilien Engel 6/7/22  
+ */
+
 #include <Servo.h> 
 #include <Stepper.h> 
-#define M4SERIAL Serial1    //Bugs out if the teensy software isn't installed in the 
+#define M4SERIAL Serial1    //Bugs out if the teensy software isn't installed
 
 //Masks
-const uint8_t OPCODE_MASK = 0b111;
-const uint8_t SERVO_INDEX_MASK = 0b11110000;
-const uint8_t STEPPER_LR_MASK = 0b10000000;         //Mask for whether we're talking about left or right stepper motor
-const uint8_t STEPPER_DIRECTION_MASK = 0b01000000;  //Mask for motor direction
+const uint8_t OPCODE_MASK = 0b111;                  //Mask for isolating opcode info from opcode
+const uint8_t SERVO_INDEX_MASK = 0b11110000;        //Mask for isolating index info from opcode
+const uint8_t STEPPER_LR_MASK = 0b10000000;         //Mask for isolating l/r stepper motor info from opcode
+const uint8_t STEPPER_DIRECTION_MASK = 0b01000000;  //Mask for isolating l/r motor direction info from opcode
 
 //Constants
-const int SERVO_MAX  = 180;
+const int SERVO_MAX  = 180;                         //Servo max range of motion
 const int NUM_SERVOS = 11;
-const int STEPS = 200;
+const int STEPS = 200;                              //Stepper number of steps
 const int STEPPER_SPEED  = 60;
 
 
 //servo declarations
-Servo servoList[NUM_SERVOS];  //array of servos
+Servo servoList[NUM_SERVOS];                        //array of servos
 
 //List of servos in order
 /*
@@ -63,7 +71,7 @@ void setup()
 //Movement of servo
 //Passes servo by reference, passes 1 byte of position data
 void moveServo(uint8_t opcode, uint8_t data){
-  int index = (int)((opcode & SERVO_INDEX_MASK) >> 4);//Get rid of opcode, shift all the way down to get index
+  int index = (int)((opcode & SERVO_INDEX_MASK) >> 4);//isolate index
   servoList[index].write((int)data);                  //Move servo at "index" to position indicated by "data"
 }
 
@@ -71,7 +79,7 @@ void moveServo(uint8_t opcode, uint8_t data){
 //Passes motor by reference, passes 1 byte of position data
 void moveStepper(uint8_t opcode, uint8_t data) {
     //Decide which direction to move
-    //TODO update m4 and Jetson to use 0bX1XXXXXX as left and 0bX0XXXXXX as right
+    //TODO update m4 and Jetson to use 0bX1XXXXXX as move left and 0bX0XXXXXX as move right
     int stepsToMove = data;                           //Defaults to moving in the positive (left) direction
     if((opcode & STEPPER_DIRECTION_MASK) != STEPPER_DIRECTION_MASK){
       stepsToMove = -stepsToMove;                     //If bit is 0, move in the negative (right) direction
