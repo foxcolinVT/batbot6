@@ -29,7 +29,7 @@ const double chirp_duration = 5E-3;
 // Must be multiple of dac_block_size
 const int num_dac_samples = freq * chirp_duration;
 
-static DmacDescriptor descriptor1 __attribute__((aligned(16)));
+//static DmacDescriptor descriptor1 __attribute__((aligned(16)));
 
 /*x`x`
  * Configuration that you probably don't want to touch
@@ -42,7 +42,7 @@ constexpr int PAGE_SIZE = 4096;
 // multiple of 4.4
 constexpr int NUM_PAGES = (DURATION + 4.4) / 4.4;
 
-//__attribute__ ((section(".dmabuffers"), used)) static uint16_t dac_buffer[num_dac_samples], adc_buffer[2][4096];
+
 
 /*
  * DMA buffers
@@ -56,8 +56,8 @@ uint16_t left_in_buffers[NUM_PAGES][PAGE_SIZE],  // Here 3 buffers (arrays) are 
   right_in_buffers[NUM_PAGES][PAGE_SIZE], dac_buffer[num_dac_samples];
 
 //temp
-char outBufferL[4];
-char outBufferR[4];
+char outBufferL[8];
+char outBufferR[8];
 
 // Index of the page currently being accessed
 uint16_t left_in_index, right_in_index;  //These essentially function as counters.
@@ -75,8 +75,6 @@ void setup() {
 
   generate_chirp();
   
-  //init the sine buffer (COMMENTED OUT)
-  //for (i=0;i<HWORDS;i++) dac_buffer[i]= 4*(sinf(i*phase) * 510.0f + 512.0f);  //Make a single-period sine wave.
   
   // Initialize all of the buffers - this section just fills the buffers with a bunch of zeros.
   for (auto i = 0; i < NUM_PAGES; i++)
@@ -119,11 +117,11 @@ void loop() {
     // If the Jetson is sending any data over...
     uint8_t opcode = JETSON_SERIAL.read();                                         // ... Read in the data that the Jetson sending over
 
-    if(opcode!=NULL)
-    {
-      Serial.write(opcode);
-      Serial.println(data_ready);
-    }
+//    if(opcode!=NULL)
+//    {
+//      //Serial.write(opcode);
+//      Serial.println(opcode);
+//    }
     
     // Start run
     if (opcode == 0x10) {                                                   // If the M4 send over the OPCODE "0x10"...
@@ -132,24 +130,34 @@ void loop() {
     //out_dma.loop(true);
       
       data_ready = false;                                                   // Start the counters at 0
-      left_in_index = right_in_index = 0;
+      left_in_index = 0;
+      right_in_index = 0;
 
 
       // NOTE: Below, the "DMA->CTRL.bit.DMAENABLE = 0" syntax writes the VALUE 0 to the REGISTER POSITION "DMAENABLE" of the REGISTER "CTRL" of the "DMAC" PERIPHERAL
       // Similar syntax can be used to write to any other register, e.g. DAC->CTRLA.bit.ENABLE = 1 or something...
       // The names of the registers can be found in the SAMD51 datasheet
-      //DAC->CTRLA.bit.ENABLE = 1;
+      DAC->CTRLA.bit.ENABLE = 1;
       // Start all DMA jobs
       DMAC->CTRL.bit.DMAENABLE = 0;                                         // Temporarily disables the DMA so that it's properties can be rewritten. 
       //out_dma.startJob();                                                   // This line starts the DMA job for the output buffer, i.e. the data to send to the speaker
       //DMAC->SWTRIGCTRL.reg |= (1 << 0);
       //DMAC->Channel[2].CHCTRLA.bit.ENABLE = 1;
 
-      //out_dma.startJob();
+      out_dma.startJob();
       left_in_dma.startJob();                                               // This line starts the DMA job for the buffer "left_in_dma" , i.e. the left ear mic.
       right_in_dma.startJob(); 
       
       DMAC->CTRL.bit.DMAENABLE = 1;                                         // Now that DMA is configured, re-enable it 
+
+//      sprintf(outBufferL, "l:%u", left_in_index);
+//      sprintf(outBufferR, "r:%u", right_in_index);
+//    JETSON_SERIAL.write("\n");
+//    JETSON_SERIAL.write(outBufferL);
+//    JETSON_SERIAL.write("\n");
+//    JETSON_SERIAL.write(outBufferR);
+//    JETSON_SERIAL.write("\n"); 
+    //JETSON_SERIAL.println("activated");
     }
     // Check run status                                                     
     else if (opcode == 0x20) {                                              // If the incoming OPCODE is '0x20' then the M4 will return the 'data_ready' flag (true/false)
@@ -216,21 +224,23 @@ void loop() {
     data_ready = true;                                                     // If the data wasn't ready but the 3 indices have reached their limits, then the data is ready...
                                                                            // ... So data_ready is set to TRUE. This will trigger the M4 to ask for the data that is now done...
                                                                            // ... being collected.
-    left_in_index = right_in_index = 0;                        // This line resets all of the indices to 0
+    left_in_index = 0;
+    right_in_index = 0;                        // This line resets all of the indices to 0
   }
-  else
-  {
-   sprintf(outBufferL, "l:%u", left_in_index);
-   sprintf(outBufferR, "r:%u", right_in_index);
-    JETSON_SERIAL.write("\n");
-    JETSON_SERIAL.write(outBufferL);
-    JETSON_SERIAL.write("\n");
-    JETSON_SERIAL.write(outBufferR);
-    JETSON_SERIAL.write("\n"); 
-    //Serial.print("test");
-    delay(500);
-  }
+//  else
+//  {
+//    sprintf(outBufferL, "l:%u", left_in_index);
+//    sprintf(outBufferR, "r:%u", right_in_index);
+//
+//    JETSON_SERIAL.write("\n");
+//    JETSON_SERIAL.write(outBufferL);
+//    JETSON_SERIAL.write("\n");
+//    JETSON_SERIAL.write(outBufferR);
+//    JETSON_SERIAL.write("\n");
+//    delay(1000);
+//  }
 }
+
 
 
 /*
