@@ -28,10 +28,11 @@
 }
 
 #chartContainer {
-	height: 370px;
-	width: 30%;
-	margin: 50px;
-	margin-top: 0px;
+	height: 400px;
+	width: 50%;
+	margin-left: auto;
+	margin-right: auto;
+	margin-bottom: 30px;
 }
 
 #sideBar {
@@ -90,7 +91,7 @@
 }
 
 .buttonBlock {
-	margin-left: 50px;
+	margin-left: 40%;
 }
 
 .btn-primary {

@@ -80,10 +80,13 @@
 	</div>
 
 	<div id="sideBar">
+		<span id="closeButton" onclick="closeSide()">&times;</span>
 		<!-- Put sliders and other adjustable fields here -->
-			<span id="closeButton" onclick="closeSide()">&times;</span>
+		<!-- Start/Stop data acquisition -->
+		
 		
 		<!-- Slider to adjust plot overlap -->
+		<p style="margin-left: 10px;">Plot Overlap</p>
 		<div class="slidecontainer">
 			<input type="range" class="slider" id="percentOverlap" min="0" max="100" value = "0" 
 			oninput="amount.value=percentOverlap.value">
@@ -99,13 +102,13 @@
 		<div id="chartContainer"></div>
 		<script src="https://canvasjs.com/assets/script/canvasjs.min.js"></script>
 		
-		<span class="buttonBlock" style="display: inline;">
+		<div class="buttonBlock" style="display: inline;">
 			<button type="button" class="btn-primary" id="spectrogram">Spectrogram</button>
 			
 			<button type="button" class="btn-primary" id="spectrum">Spectrum</button>
 			
 			<button type="button" class="btn-primary" id="oscillogram">Oscillogram</buttton>
-		</span>
+		</div>
 	</div>
 	
 	<script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
