@@ -3,7 +3,7 @@
 <head>
 	<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.3.1/dist/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
-	<link rel="stylesheet" href="indexStyle.css">
+	<link rel="stylesheet" href="{{ url_for('static', filename='css/indexStyle.css')}}">
 	
 	<script>
 		// Opens the settings sidebar when button is clicked
@@ -81,19 +81,25 @@
 
 	<div id="sideBar">
 		<span id="closeButton" onclick="closeSide()">&times;</span>
-		<!-- Put sliders and other adjustable fields here -->
-		<!-- Start/Stop data acquisition -->
 		
+		<!-- Start/Stop data acquisition -->
+		<p class="settinglabels">Start/Stop data acquisition</p>
+		<div id="startstop" class="varfields">
+			<a href="\A"><button type="button" class="btn-primary" id="start">Start</button></a>
+			<button type="button" class="btn-primary" id="stop">Stop</button>
+		</div>
 		
 		<!-- Slider to adjust plot overlap -->
-		<p style="margin-left: 10px;">Plot Overlap</p>
-		<div class="slidecontainer">
+		<p class="settinglabels">Plot Overlap</p>
+		<div class="varfields">
 			<input type="range" class="slider" id="percentOverlap" min="0" max="100" value = "0" 
 			oninput="amount.value=percentOverlap.value">
 			<div style="text-align: center;">
 				<p><output id="amount" name="amount" for="percentOverlap">0</output>%</p>
 			</div>
 		</div>
+		
+		<!-- Start/Stop pinna deformations -->
 	</div>
 
 	<div id="main">

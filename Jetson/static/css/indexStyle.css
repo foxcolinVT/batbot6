@@ -59,8 +59,9 @@
 	margin-left: 50px;
 }
 
-.slidecontainer {
+.varfields {
 	width: 100%;
+	margin-bottom: 10px;
 }
 
 .slider {
@@ -98,4 +99,17 @@
 	margin-right: 20px;
 	background-color: maroon !important;
 	border-color: #840000 !important;
+}
+
+#startstop {
+	margin-left: 15%;
+}
+
+#start {
+	margin-right: 30px;
+}
+
+.settinglabels {
+	margin-left: 10px;
+	margin-bottom: 5px;
 }
