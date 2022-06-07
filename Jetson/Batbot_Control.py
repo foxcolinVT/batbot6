@@ -305,7 +305,7 @@ if __name__ == '__main__':
     folder_name = input()
 
     print('-' * 60)    
-    print(f'Saving to {os.path.abspath(folder_name)}')
+    print(f'Saving to {os.path.dirname(os.path.abspath(__file__))}')
     print('-' * 60)
 
     # Ask user if they want to limit number of runs
@@ -335,7 +335,7 @@ if __name__ == '__main__':
 
             # Create output folder and file
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S%f')[:-3]
-            output_folder = folder_name + '/'
+            output_folder = os.path.dirname(os.path.abspath(__file__)) + '/dataDst/'
             output_filename = timestamp + '.txt'
             output_path = output_folder + output_filename
             if not os.path.exists(output_folder):
