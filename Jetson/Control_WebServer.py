@@ -12,8 +12,13 @@ app = Flask(__name__)
 def render():
     return render_template('index.html')
 
-@app.route('/A')
+# Start/stop data acquisition
+@app.route('/Data')
 def start():
+    return render_template('index.html')
+
+@app.route('/Deform')
+def pinna():
     return render_template('index.html')
 
 

@@ -101,11 +101,11 @@
 	border-color: #840000 !important;
 }
 
-#startstop {
+.stbuttons {
 	margin-left: 15%;
 }
 
-#start {
+.varfields #btn-primary {
 	margin-right: 30px;
 }
 
