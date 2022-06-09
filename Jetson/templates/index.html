@@ -5,6 +5,12 @@
 	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.3.1/dist/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
 	<link rel="stylesheet" href="{{ url_for('static', filename='css/indexStyle.css')}}">
 	
+	<!--<link href="css/spectrogram.css" media="screen" rel="stylesheet" type="text/css" />
+	<script type="text/javascript" src="js/d3.v5.min.js"></script>
+	<script type="text/javascript" src="js/spectrogram.js"></script>
+	<div id="main" class="spectrogram"></div>-->
+	
+
 	<script>
 		// Opens the settings sidebar when button is clicked
 		function openSide() {
@@ -41,6 +47,14 @@
 		var yVal = 100; 
 		var updateInterval = 1000;
 		var dataLength = 20; // number of data points displayed at one time
+
+		/*
+		var sample = new Spectrogram([10, 20, 30, 40], "#vis", {
+    	width: 600,
+    	height: 300,
+    	colorScheme: ['#440154', '#472877', '#3e4a89', '#31688d', '#26838e', '#1f9e89', '#36b778', '#6dcd59', '#b4dd2c', '#fde725']
+    	});
+		*/
 
 		var updateChart = function (count) {
 
