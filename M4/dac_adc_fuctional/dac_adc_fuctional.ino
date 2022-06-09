@@ -47,13 +47,14 @@ constexpr int NUM_PAGES = (DURATION + 4.4) / 4.4;
 /*
  * DMA buffers
  */
+__attribute__ ((section(".dmabuffers"), used)) static uint16_t dac_buffer[num_dac_samples];
 
 // Create buffers for DMAing data around -- the .dmabuffers section is supposed
 // to optimize the memory location for the DMA controller
 // FYI --- A buffer is a pre-allocated set of memory (an array), with a name, for example "my_buffer", that you can fill with data.
 __attribute__ ((section(".dmabuffers"), used))   // This ".dmabuffers" thing is from the Adafruit zeroDMA library
 uint16_t left_in_buffers[NUM_PAGES][PAGE_SIZE],  // Here 3 buffers (arrays) are built. Each one is an array of unsigned integer, and the array's size is NUM_PAGES x PAGE_SIZE
-  right_in_buffers[NUM_PAGES][PAGE_SIZE], dac_buffer[num_dac_samples];
+  right_in_buffers[NUM_PAGES][PAGE_SIZE]; //dac_buffer[num_dac_samples];
 
 //temp
 char outBufferL[8];
@@ -137,12 +138,12 @@ void loop() {
       // NOTE: Below, the "DMA->CTRL.bit.DMAENABLE = 0" syntax writes the VALUE 0 to the REGISTER POSITION "DMAENABLE" of the REGISTER "CTRL" of the "DMAC" PERIPHERAL
       // Similar syntax can be used to write to any other register, e.g. DAC->CTRLA.bit.ENABLE = 1 or something...
       // The names of the registers can be found in the SAMD51 datasheet
-      DAC->CTRLA.bit.ENABLE = 1;
+      //DAC->CTRLA.bit.ENABLE = 1;
+      DMAC->Channel[2].CHCTRLA.bit.ENABLE = 1;
       // Start all DMA jobs
       DMAC->CTRL.bit.DMAENABLE = 0;                                         // Temporarily disables the DMA so that it's properties can be rewritten. 
       //out_dma.startJob();                                                   // This line starts the DMA job for the output buffer, i.e. the data to send to the speaker
       //DMAC->SWTRIGCTRL.reg |= (1 << 0);
-      //DMAC->Channel[2].CHCTRLA.bit.ENABLE = 1;
 
       out_dma.startJob();
       left_in_dma.startJob();                                               // This line starts the DMA job for the buffer "left_in_dma" , i.e. the left ear mic.
@@ -355,11 +356,11 @@ void dma_init() {
       false);
     desc->BTCTRL.bit.BLOCKACT = DMA_BLOCK_ACTION_INT;
 
-    //out_dma.loop(true);
+    out_dma.loop(true);
     out_dma.setTrigger(0x16);
     out_dma.setAction(DMA_TRIGGER_ACTON_BEAT);
     out_dma.setCallback(stop_callback);
-    //out_dma.startJob();
+    out_dma.startJob();
     //delay(10000);
     //DMAC->Channel[2].CHCTRLA.bit.ENABLE = 0;
     //delay(1000);
@@ -450,7 +451,7 @@ void generate_chirp()
 }
 
 void stop_callback(Adafruit_ZeroDMA *dma) {
-
-     DAC->CTRLA.bit.ENABLE = 0;
+     DMAC->Channel[2].CHCTRLA.bit.ENABLE = 0;
+     //DAC->CTRLA.bit.ENABLE = 0;
 
 }
