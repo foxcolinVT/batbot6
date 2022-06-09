@@ -29,7 +29,7 @@ const double chirp_duration = 5E-3;
 // Must be multiple of dac_block_size
 const int num_dac_samples = freq * chirp_duration;
 
-//static DmacDescriptor descriptor1 __attribute__((aligned(16)));
+static DmacDescriptor descriptor1 __attribute__((aligned(16)));
 
 /*x`x`
  * Configuration that you probably don't want to touch
@@ -47,18 +47,14 @@ constexpr int NUM_PAGES = (DURATION + 4.4) / 4.4;
 /*
  * DMA buffers
  */
-__attribute__ ((section(".dmabuffers"), used)) static uint16_t dac_buffer[num_dac_samples];
+//__attribute__ ((section(".dmabuffers"), used)) static uint16_t dac_buffer[num_dac_samples];
 
 // Create buffers for DMAing data around -- the .dmabuffers section is supposed
 // to optimize the memory location for the DMA controller
 // FYI --- A buffer is a pre-allocated set of memory (an array), with a name, for example "my_buffer", that you can fill with data.
 __attribute__ ((section(".dmabuffers"), used))   // This ".dmabuffers" thing is from the Adafruit zeroDMA library
 uint16_t left_in_buffers[NUM_PAGES][PAGE_SIZE],  // Here 3 buffers (arrays) are built. Each one is an array of unsigned integer, and the array's size is NUM_PAGES x PAGE_SIZE
-  right_in_buffers[NUM_PAGES][PAGE_SIZE]; //dac_buffer[num_dac_samples];
-
-//temp
-char outBufferL[8];
-char outBufferR[8];
+  right_in_buffers[NUM_PAGES][PAGE_SIZE], dac_buffer[num_dac_samples];
 
 // Index of the page currently being accessed
 uint16_t left_in_index, right_in_index;  //These essentially function as counters.
@@ -92,6 +88,7 @@ void setup() {
   adc_init(A3, ADC1);
   dac_init();
   dma_init();
+  timer_init();
 
   // Trigger both ADCs to enter free-running mode
   ADC0->SWTRIG.bit.START = 1;
@@ -301,7 +298,9 @@ void timer_init() {
 
 void dma_init() {
   //static Adafruit_ZeroDMA left_in_dma, right_in_dma, out_dma;
+
   static DmacDescriptor *left_in_descs[NUM_PAGES], *right_in_descs[NUM_PAGES];
+  
   // Create left ADC channel DMA job
   {
     left_in_dma.allocate();
@@ -447,7 +446,6 @@ void generate_chirp()
     // Move the signal across a difference reference
     dac_buffer[i] = 4096/2 + 4096/2 * (chirp * window);
   }
-  //dac_buffer[-1]=0;
 }
 
 void stop_callback(Adafruit_ZeroDMA *dma) {
