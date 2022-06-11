@@ -12,6 +12,30 @@
 	
 
 	<script>
+		/* HTTP/Web Server Communications
+		 * Function not currently called anywhere. 
+		*/
+		function serverComms(filename) {             
+			if (window.XMLHttpRequest) {                                    // Check if XMLHttpRequest object can be created
+				xmlhttp = new XMLHttpRequest();                               // Note that this request can retrieve data types other than XML 
+			}
+			else {
+				xmlhttp = new ActiveXObject("Microsoft.XMLHTTP");             // Support for older browsers
+			}
+			
+			xmlhttp.onreadystatechange = function() {
+				if (this.readyState == 4 && this.status == 200) {
+					var address = this.responseText
+					
+					return address;
+				}
+			}
+			
+			xmlhttp.open("GET", filename, async);
+			xmlhttp.timeout = timeout;
+			xmlhttp.send();
+		}
+	
 		// Opens the settings sidebar when button is clicked
 		function openSide() {
 			document.getElementById("sideBar").style.width = "250px";
@@ -28,7 +52,7 @@
 	
 	
 		/*
-		* Generates a dynamic line chart with random values
+		* Generates 2 dynamic line charts with random values
 		*/
 		window.onload = function () {
 
@@ -124,6 +148,7 @@
 		</div>
 		
 		<!-- Slider to adjust plot overlap -->
+		<!-- I'm not actually sure if we need plot overlap or what it's for--it was just in the original gui -->
 		<p class="settinglabels">Plot Overlap</p>
 		<div class="varfields">
 			<input type="range" class="slider" id="percentOverlap" min="0" max="100" value = "0" 
