@@ -9,33 +9,65 @@
 	<script type="text/javascript" src="js/d3.v5.min.js"></script>
 	<script type="text/javascript" src="js/spectrogram.js"></script>
 	<div id="main" class="spectrogram"></div>-->
-	
+</head>
+<body>
+	<div class="container-fluid" id="headerbar" style="background: maroon;">
+		<div class="logo">VT BIST Lab</div>
+	</div>
 
-	<script>
-		/* HTTP/Web Server Communications
-		 * Function not currently called anywhere. 
-		*/
-		function serverComms(filename) {             
-			if (window.XMLHttpRequest) {                                    // Check if XMLHttpRequest object can be created
-				xmlhttp = new XMLHttpRequest();                               // Note that this request can retrieve data types other than XML 
-			}
-			else {
-				xmlhttp = new ActiveXObject("Microsoft.XMLHTTP");             // Support for older browsers
-			}
-			
-			xmlhttp.onreadystatechange = function() {
-				if (this.readyState == 4 && this.status == 200) {
-					var address = this.responseText
-					
-					return address;
-				}
-			}
-			
-			xmlhttp.open("GET", filename, async);
-			xmlhttp.timeout = timeout;
-			xmlhttp.send();
-		}
+	<div id="sideBar">
+		<span id="closeButton" onclick="closeSide()">&times;</span>
+		
+		<!-- Start/Stop data acquisition -->
+		<p class="settinglabels">Start/Stop Data Acquisition</p>
+		<div class="stbuttons" class="varfields">
+			<button type="button" class="btn-primary" id="name" value="startData" onclick="sendData()">Start</button>             <!-- HTTP requests still very experimental--i.e., sends random test data-->
+			<button type="button" class="btn-primary">Stop</button>
+		</div>
+		
+		<!-- Start/Stop pinna deformations -->
+		<p class="settinglabels">Start/Stop Pinna Deformations</p>
+		<div class="stbuttons" class="varfields">
+			<button type="button" class="btn-primary">Start</button>
+			<button type="button" class="btn-primary">Stop</button>
+		</div>
+		
+		<!-- Slider to adjust plot overlap -->
+		<!-- I'm not actually sure if we need plot overlap or what it's for--it was just in the original gui -->
+		<p class="settinglabels">Plot Overlap</p>
+		<div class="varfields">
+			<input type="range" class="slider" id="percentOverlap" min="0" max="100" value = "0" 
+			oninput="amount.value=percentOverlap.value">
+			<div style="text-align: center;">
+				<p><output id="amount" name="amount" for="percentOverlap">0</output>%</p>
+			</div>
+		</div>
+		
+	</div>
+
+	<div id="main">
+		<span id="openButton" onclick="openSide()">&#9776;</span>
 	
+		<div class="float-child" id="chartContainer"></div>
+		
+		<div class="float-child" id="chartContainer2"></div>
+		
+		<div class="buttonBlock" style="display: inline;">
+			<button type="button" class="btn-primary" id="spectrogram">Spectrogram</button>
+			
+			<button type="button" class="btn-primary" id="spectrum">Spectrum</button>
+			
+			<button type="button" class="btn-primary" id="oscillogram">Time Domain</buttton>
+		</div>
+	</div>
+	
+	<div id="result"></div>
+	
+	<script src="https://canvasjs.com/assets/script/canvasjs.min.js"></script>
+	<script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+	<script src="https://cdn.jsdelivr.net/npm/popper.js@1.14.7/dist/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
+	<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.3.1/dist/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
+	<script>
 		// Opens the settings sidebar when button is clicked
 		function openSide() {
 			document.getElementById("sideBar").style.width = "250px";
@@ -48,6 +80,32 @@
 			document.getElementById("sideBar").style.width = "0";
 			document.getElementById("main").style.marginLeft = "0";
 			document.getElementById("openButton").style.visibility = "visible";
+		}
+	
+	
+		/* HTTP/Web Server Communications
+		 * Uses AJAX HTTP requests to send and receive data with web server.
+		 * This should enable client-server communication without causing the page to refresh
+		 * the way that Flask routing does.
+		*/
+		function sendData() {             
+			if (window.XMLHttpRequest) {                                        // Check if XMLHttpRequest object can be created
+				var xmlhttp = new XMLHttpRequest();                               // Note that this request can retrieve data types other than XML 
+			}
+			else {
+				var xmlhttp = new ActiveXObject("Microsoft.XMLHTTP");                 // Support for older browsers
+			}
+			
+			var result = document.getElementById('result');
+			xmlhttp.onreadystatechange = function() {
+				if (this.readyState == 4 && this.status == 200) {
+					result.innerHTML = this.responseText;
+				}
+			}
+			
+			xmlhttp.open('POST', '/', true);                                   // Specify request type
+			xmlhttp.setRequestHeader('content-type', 'application/x-www-form-urlencoded;charset=UTF-8');
+			xmlhttp.send("name=" + document.getElementById('name').value);                               // Send request
 		}
 	
 	
@@ -126,62 +184,6 @@
 		*/
 		
 	</script>
-</head>
-<body>
-	<div class="container-fluid" id="headerbar" style="background: maroon;">
-		<div class="logo">VT BIST Lab</div>
-	</div>
-
-	<div id="sideBar">
-		<span id="closeButton" onclick="closeSide()">&times;</span>
-		
-		<!-- Start/Stop data acquisition -->
-		<p class="settinglabels">Start/Stop Data Acquisition</p>
-		<div class="stbuttons" class="varfields">
-			<a href="\Data"><button type="button" class="btn-primary">Start</button></a>
-			<button type="button" class="btn-primary">Stop</button>
-		</div>
-		
-		<!-- Start/Stop pinna deformations -->
-		<p class="settinglabels">Start/Stop Pinna Deformations</p>
-		<div class="stbuttons" class="varfields">
-			<a href="\Deform"><button type="button" class="btn-primary">Start</button></a>
-			<button type="button" class="btn-primary">Stop</button>
-		</div>
-		
-		<!-- Slider to adjust plot overlap -->
-		<!-- I'm not actually sure if we need plot overlap or what it's for--it was just in the original gui -->
-		<p class="settinglabels">Plot Overlap</p>
-		<div class="varfields">
-			<input type="range" class="slider" id="percentOverlap" min="0" max="100" value = "0" 
-			oninput="amount.value=percentOverlap.value">
-			<div style="text-align: center;">
-				<p><output id="amount" name="amount" for="percentOverlap">0</output>%</p>
-			</div>
-		</div>
-		
-	</div>
-
-	<div id="main">
-		<span id="openButton" onclick="openSide()">&#9776;</span>
-	
-		<div class="float-child" id="chartContainer"></div>
-		
-		<div class="float-child" id="chartContainer2"></div>
-		
-		<div class="buttonBlock" style="display: inline;">
-			<button type="button" class="btn-primary" id="spectrogram">Spectrogram</button>
-			
-			<button type="button" class="btn-primary" id="spectrum">Spectrum</button>
-			
-			<button type="button" class="btn-primary" id="oscillogram">Time Domain</buttton>
-		</div>
-	</div>
-	
-	<script src="https://canvasjs.com/assets/script/canvasjs.min.js"></script>
-	<script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
-	<script src="https://cdn.jsdelivr.net/npm/popper.js@1.14.7/dist/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
-	<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.3.1/dist/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
 </body>
 </html>
 
