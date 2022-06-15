@@ -11,8 +11,10 @@ app = Flask(__name__)
 @app.route('/', methods=['GET', 'POST'])
 def render():
     if request.method == "POST":
-        name = request.form["name"]
-        return name + " Hello"
+        func = request.form["function"]
+        #if func == "startData":
+            # Send opcode to start data acquisition?
+        #return func + " Hello"                               this line for debugging purposes
     return render_template('index.html')
 
 if __name__ == '__main__':

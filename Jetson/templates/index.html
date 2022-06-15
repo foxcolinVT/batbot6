@@ -21,15 +21,15 @@
 		<!-- Start/Stop data acquisition -->
 		<p class="settinglabels">Start/Stop Data Acquisition</p>
 		<div class="stbuttons" class="varfields">
-			<button type="button" class="btn-primary" id="name" value="startData" onclick="sendData()">Start</button>             <!-- HTTP requests still very experimental--i.e., sends random test data-->
-			<button type="button" class="btn-primary">Stop</button>
+			<button type="button" class="btn-primary" id="dataStart" value="startData" onclick="sendData('dataStart')">Start</button>             
+			<button type="button" class="btn-primary" id="dataStop" value="stopData" onclick="sendData('dataStop')">Stop</button>
 		</div>
 		
 		<!-- Start/Stop pinna deformations -->
 		<p class="settinglabels">Start/Stop Pinna Deformations</p>
 		<div class="stbuttons" class="varfields">
-			<button type="button" class="btn-primary">Start</button>
-			<button type="button" class="btn-primary">Stop</button>
+			<button type="button" class="btn-primary" id="deformStart" value="startDeform" onclick="sendData('deformStart')">Start</button>
+			<button type="button" class="btn-primary" id="deformStop" value="stopDeform" onclick="sendData('deformStop')">Stop</button>
 		</div>
 		
 		<!-- Slider to adjust plot overlap -->
@@ -88,7 +88,7 @@
 		 * This should enable client-server communication without causing the page to refresh
 		 * the way that Flask routing does.
 		*/
-		function sendData() {             
+		function sendData(elID) {             
 			if (window.XMLHttpRequest) {                                        // Check if XMLHttpRequest object can be created
 				var xmlhttp = new XMLHttpRequest();                               // Note that this request can retrieve data types other than XML 
 			}
@@ -105,7 +105,7 @@
 			
 			xmlhttp.open('POST', '/', true);                                   // Specify request type
 			xmlhttp.setRequestHeader('content-type', 'application/x-www-form-urlencoded;charset=UTF-8');
-			xmlhttp.send("name=" + document.getElementById('name').value);                               // Send request
+			xmlhttp.send("function=" + document.getElementById(elID).value);                               // Send request
 		}
 	
 	
