@@ -18,9 +18,9 @@ const uint8_t STEPPER_DIRECTION_MASK = 0b01000000;  //Mask for isolating l/r mot
 
 //Constants
 const int SERVO_MAX  = 180;                         //Servo max range of motion
-const int NUM_SERVOS = 11;
+const int NUM_SERVOS = 11;                          //Number of servos implemented (on pins 2 through 2+NUM_SERVOS)
 const int STEPS = 200;                              //Stepper number of steps
-const int STEPPER_SPEED  = 60;
+const int STEPPER_SPEED  = 120;
 
 
 //servo declarations
@@ -92,12 +92,16 @@ void moveStepper(uint8_t opcode, uint8_t data) {
       leftStepper.pos = leftStepper.pos + stepsToMove;//update current position  
     }
     else {                                        
-      rightStepper.S.step(stepsToMove);               //Move TODO check that it indeed moves right at amount indicated
+      rightStepper.S.step(stepsToMove);                   //Move TODO check that it indeed moves right at amount indicated
       rightStepper.pos = rightStepper.pos + stepsToMove;  //update current position  
+      
+      //Debug
+      Serial.write(opcode);
+      Serial.write(data);
     }
   
   /*
-  Note that this is very sensitive to change since there is no positional feedback
+  Note that this is very sensitive to change in initial position since there is no positional feedback
   from the steppers to the teensy.
 
   This could be remedied by either getting motors with feedback or by 
@@ -117,8 +121,7 @@ void loop()
       Opcode documentation found at
       https://docs.google.com/document/d/1cmILsPNfWTc15lZilK4X1TophI3p4mWjxnR8-Ee94GQ/edit
     */
-
-
+  
   if (M4SERIAL.available() > 1) {             //Requires 2 bytes- opcode and data
     uint8_t opcode = M4SERIAL.read();         //Upper 4 bits of this opcode describe which motor to move (for a max of 16 motors). Lower 4 bits reserved for instructions
     if((opcode & OPCODE_MASK) == 0x02){
@@ -133,5 +136,35 @@ void loop()
       //Send sensory data to m4
       //Legacy opcode. No sensory data to get as far as I know.
     }
-  } 
+  }
+
+  //Testing code
+  /*if (Serial.available() > 1) {             //Requires 2 bytes- opcode and data
+    uint8_t opcode = Serial.read();         //Upper 4 bits of this opcode describe which motor to move (for a max of 16 motors). Lower 4 bits reserved for instructions
+    //Debug
+    /*while(Serial.available() <= 0){
+      //Wait until another is available
+    }*/
+    
+    /*if((opcode & OPCODE_MASK) == 0x02){
+      uint8_t data = Serial.read();       //Only retrieve next byte if opcode is valid
+      moveServo(opcode, data);
+    }
+    else if((opcode & OPCODE_MASK) == 0x03){
+      uint8_t data = Serial.read();         //Only retrieve next byte if opcode is valid
+      moveStepper(opcode, data);
+    }
+    else if((opcode & OPCODE_MASK) == 0x04){
+      //Send sensory data to m4
+      //Legacy opcode. No sensory data to get as far as I know.
+    }
+  }*/
+
+  //Tests that the opcode/data combination works. It does.
+  /*uint8_t data = 0;
+  uint8_t opcode = 0x92;
+  for(; data<180; data = data + 3){
+     moveServo(opcode, data);
+     delay(500);
+  }*/
 }
