@@ -20,15 +20,32 @@ void setup() {
 
 void loop() {
   //Tests that the opcode/data combination works.
-  //Test works for pins 2-12. Issues encountered when tested on pins 13, 14  
+
+  //TODO TESTS:
+    //Test multiple servo control
+    //Test with M4 script
+    //Looks like we won't need steppers. Only test them if we are told we will need them
+
+  //DONE TESTS:
+    //Test with various delays between opcode and data send
+      //Works with delay of 100ms
+      //Works with delay fo 1000ms. Probably no need to test beyond this.
+    //Test invalid inputs
+      //Wrong opcode doesn't allow servo control
+    //Test it works for all pins.
+      //Issue seemed to stem from use of analog pins. Teensy pins 0-13 can be used for servos.
+
+      
   uint8_t data = 0;
   uint8_t opcode = 0xC2;
   for(; data<180; data = data + 3){
-     serial.write(opcode);
+     serial.write(opcode + 0);
+     //delay(1000);
      serial.write(data);
+     //delay(1000);
 
-     Serial.write(opcode);
-     Serial.write(data);
+     Serial.println(opcode);
+     Serial.println(data);
      
      delay(500);
   }

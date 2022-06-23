@@ -10,9 +10,10 @@ and communicated to the Teensy via serial connection.
 SETUP
 
 Wiring Connections:
-			Pins 0,1 :			Serial1 Connection
-			Pins 2 - (NUM_SERVOS + 2):	Servo Control Connection 	(max of 16 servos, limited by opcode)
-			Pins 16-19:			Left Stepper			(See Arduino documentation for stepper wiring. Bipolar stepper wires are arranged in pairs that will read as shorts on a multimeter)
+			Pins 0 - (NUM_SERVOS):		Servo Control Connection 		(max of 12 servos, limited by Arduino. Opcode could potentially support 16 servos)
+			Pin 14:				Serial3 Tx
+			Pin 15:				Serial3 Rx
+			Pins 16-19:			Left Stepper				(See Arduino documentation for stepper wiring. Bipolar stepper wires are arranged in pairs that will read as shorts on a multimeter)
 			Pins 20-23:			Right Stepper
 
 Download and install teensy software at https://www.pjrc.com/teensy/td_download.html
@@ -25,7 +26,7 @@ SERVOS:
 General info:
 	Which servo corresponds to what function is undefined at the time of writing.
 	The number of controllable servos can be adjusted by changing NUM_SERVOS.
-	Servo 0 will be at pin 2, servo 1 will be at pin 3 and so on.
+	Servo 0 will be at pin 0, servo 1 will be at pin 1 and so on.
 	Servo control is written for traditional (0-180 deg) servos. 
 	Servo control data should be mapped as 1-1, where an input of 180 corresponds to a servo movement of 180 degrees.
 
