@@ -43,15 +43,6 @@ Servo mouthB; //Mouth servo B
 Servo mouthC;  //Mouth servo C
 */
 
-//Stepper declarations
-/*struct StepperStruct{
-  Stepper S = Stepper(STEPS, 23, 22, 21, 20);         //Default values to make arduino happy. Will be overwritten in setup
-  int pos = 0;
-};*/
-
-//StepperStruct leftStepper;                            //Declare stepper struct
-//StepperStruct rightStepper;                           //Declare stepper struct
-
 void setup() 
 { 
   Serial.begin(9600);                                 //Used for debugging
@@ -64,11 +55,6 @@ void setup()
     Serial.print(": ");
     Serial.println(servoList[i].attached());
   }
-
-  //Stepper Initializations
-  /*leftStepper.S = Stepper(STEPS, 19, 18, 17, 16);
-  leftStepper.S.setSpeed(STEPPER_SPEED);
-  rightStepper.S = Stepper(STEPS, 23, 22, 21, 20);*/
 } 
 
 //Movement of servo
@@ -79,41 +65,6 @@ void moveServo(uint8_t opcode, uint8_t data){
   Serial.println((uint8_t)data);
   servoList[index].write((uint8_t)data);                  //Move servo at "index" to position indicated by "data"
 }
-
-//Movement of stepper motor
-//Passes motor by reference, passes 1 byte of position data
-/*void moveStepper(uint8_t opcode, uint8_t data) {
-    //Decide which direction to move
-    //TODO update m4 and Jetson to use 0bX1XXXXXX as move left and 0bX0XXXXXX as move right
-    int stepsToMove = data;                           //Defaults to moving in the positive (left) direction
-    if((opcode & STEPPER_DIRECTION_MASK) != STEPPER_DIRECTION_MASK){
-      stepsToMove = -stepsToMove;                     //If bit is 0, move in the negative (right) direction
-    }
-
-    //Decide which motor to move
-    //TODO update m4 and Jetson to use 0b1XXXXXXX as left and 0b0XXXXXXX as right
-    if((opcode & STEPPER_LR_MASK) == STEPPER_LR_MASK){           
-      leftStepper.S.step(stepsToMove);                //Move TODO check that it indeed moves left at amount indicated
-      leftStepper.pos = leftStepper.pos + stepsToMove;//update current position  
-    }
-    else {                                        
-      rightStepper.S.step(stepsToMove);                   //Move TODO check that it indeed moves right at amount indicated
-      rightStepper.pos = rightStepper.pos + stepsToMove;  //update current position  
-      
-      //Debug
-      Serial.write(opcode);
-      Serial.write(data);
-    }
-  
-  /*
-  Note that this is very sensitive to change in initial position since there is no positional feedback
-  from the steppers to the teensy.
-
-  This could be remedied by either getting motors with feedback or by 
-  engineering a reference point for the steppers to index off of.
-  (like the end of travel sensors for 3D printers).
-*/
-//}
 
 //Main function, runs in background
 void loop() 
@@ -134,8 +85,7 @@ void loop()
       moveServo(opcode, data);
     }
     else if((opcode & OPCODE_MASK) == 0x03){
-      //uint8_t data = M4SERIAL.read();       //Only retrieve next byte if opcode is valid
-      //moveStepper(opcode, data);
+      //Move Stepper. Legacy opcode if we don't end up using steppers. If we need the stepper code again, find it on github before changes pushed on 6/23/22
     }
     else if((opcode & OPCODE_MASK) == 0x04){
       //Send sensory data to m4
