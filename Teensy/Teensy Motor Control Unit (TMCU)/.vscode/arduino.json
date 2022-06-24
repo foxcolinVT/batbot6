@@ -1,0 +1,4 @@
+{
+    "board": "arduino:avr:uno",
+    "sketch": "TMCU_Functions\\TMCU_Functions.ino"
+}

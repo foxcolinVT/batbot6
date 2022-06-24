@@ -52,6 +52,8 @@ uint16_t left_in_index, right_in_index, out_index;  //These essentially function
 // Here, three "ZeroDMA jobs" are initialized. The 'jobs' aren't started here, but later on they will be used to transfer data from the microphones to the UART.
 Adafruit_ZeroDMA left_in_dma, right_in_dma, out_dma;
 
+//Bitmasks
+uint8_t TEENSY_OPCODE_MASK = 0b00001111;
 
 void setup() {
   //TODO Serial doesn't work for the first second or two - DON'T WORRY ABOUT THIS, the delay takes care of it.
@@ -133,35 +135,22 @@ void loop() {
           sizeof(uint16_t) * PAGE_SIZE);
       }
     }
-    // Teensy OPCODE handling
-    else if (opcode == 0x01) {
-      // Read in OPCODES for TVCU
-      uint8_t tvcu_motionprofile = JETSON_SERIAL.read();
-      uint8_t tvcu_pwmsetting = JETSON_SERIAL.read();
-      uint8_t tvcu_opcode = 0x01;
-      // Pass on instructions to TVCU
-      TVCU_SERIAL.write(tvcu_opcode);
-      TVCU_SERIAL.write(tvcu_motionprofile);
-      TVCU_SERIAL.write(tvcu_pwmsetting);
-    }
-    
-    else if (opcode == 0x02) {
+    // Teensy OPCODE handling    
+    else if ((opcode & TEENSY_OPCODE_MASK) == 0x02) {
       // Read in OPCODES for TMCU
       uint8_t tmcu_servo = JETSON_SERIAL.read();
       
       //Pass on instructions
-      TMCU_SERIAL.write(0x02);
+      TMCU_SERIAL.write(opcode);
       TMCU_SERIAL.write(tmcu_servo);
     }
     
-    else if (opcode == 0x03) {
-      uint8_t tmcu_r_stepper = JETSON_SERIAL.read();
-      uint8_t tmcu_l_stepper = JETSON_SERIAL.read();
+    else if ((opcode & TEENSY_OPCODE_MASK) == 0x03) {
+      uint8_t tmcu_stepper = JETSON_SERIAL.read();
       
       // Pass on instructions to TMCU
-      TMCU_SERIAL.write(0x03);
-      TMCU_SERIAL.write(tmcu_r_stepper);
-      TMCU_SERIAL.write(tmcu_l_stepper);
+      TMCU_SERIAL.write(opcode);
+      TMCU_SERIAL.write(tmcu_stepper);
     }
   }
 
