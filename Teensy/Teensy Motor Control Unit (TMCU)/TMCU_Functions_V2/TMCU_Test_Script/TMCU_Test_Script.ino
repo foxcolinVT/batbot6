@@ -16,6 +16,7 @@ SoftwareSerial serial (RX_PIN, TX_PIN);
 void setup() {
   serial.begin(9600);
   Serial.begin(9600);
+  delay(1000);
 }
 
 void loop() {
@@ -36,17 +37,22 @@ void loop() {
       //Issue seemed to stem from use of analog pins. Teensy pins 0-13 can be used for servos.
 
       
-  uint8_t data = 0;
-  uint8_t opcode = 0xC2;
-  for(; data<180; data = data + 3){
-     serial.write(opcode + 0);
-     //delay(1000);
+  uint8_t data = 40;
+  uint8_t opcode1 = 0b00100010;
+  uint8_t opcode2 = 0b00010010;
+  for(; data<180; data = data + 50){
+     serial.write(opcode1);
      serial.write(data);
-     //delay(1000);
+     delay(100);
+     serial.write(opcode2);
+     serial.write(data);  
 
-     Serial.println(opcode);
+     Serial.println(opcode1);
      Serial.println(data);
+     Serial.println(opcode2);
+     Serial.println(data);
+
      
-     delay(500);
+     delay(100);
   }
 }

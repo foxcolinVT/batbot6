@@ -11,7 +11,7 @@
 #define M4SERIAL Serial3    //Bugs out if the teensy software isn't installed
 
 //Masks
-const uint8_t OPCODE_MASK = 0b111;                  //Mask for isolating opcode info from opcode
+const uint8_t OPCODE_MASK = 0b00001111;             //Mask for isolating opcode info from opcode
 const uint8_t SERVO_INDEX_MASK = 0b11110000;        //Mask for isolating index info from opcode
 const uint8_t STEPPER_LR_MASK = 0b10000000;         //Mask for isolating l/r stepper motor info from opcode
 const uint8_t STEPPER_DIRECTION_MASK = 0b01000000;  //Mask for isolating l/r motor direction info from opcode
@@ -21,6 +21,8 @@ const int SERVO_MAX  = 180;                         //Servo max range of motion
 const int NUM_SERVOS = 11;                          //Number of servos implemented (on pins 0 to NUM_SERVOS). Max of 12 servos (limited by the board). We could implement more if we wanted to go through shenanigans
 const int STEPS = 200;                              //Stepper number of steps
 const int STEPPER_SPEED  = 120;
+const int SERVO_MAX_TRAVEL = 180;                   //Sets servo end of travel
+const int SERVO_MIN_TRAVEL = 10;                   //Sets servo end of travel
 
 
 //servo declarations
@@ -63,7 +65,9 @@ void moveServo(uint8_t opcode, uint8_t data){
   uint8_t index = (uint8_t)((opcode & SERVO_INDEX_MASK) >> 4);//isolate index
   Serial.println((uint8_t)((opcode & SERVO_INDEX_MASK) >> 4));
   Serial.println((uint8_t)data);
-  servoList[index].write((uint8_t)data);                  //Move servo at "index" to position indicated by "data"
+  if(data < SERVO_MAX_TRAVEL && data > SERVO_MIN_TRAVEL){
+    servoList[index].write((uint8_t)data);                  //Move servo at "index" to position indicated by "data"
+  }
 }
 
 //Main function, runs in background
