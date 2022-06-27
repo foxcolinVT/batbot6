@@ -11,6 +11,7 @@ import struct
 import time
 import math
 import os
+import Control_WebServer as webserver
 
 # Number of runs between plot updates. Plotting almost doubles the
 # duration of each run, so keep this large
@@ -300,6 +301,8 @@ if __name__ == '__main__':
     
     print('-' * 60)
 
+    print(webserver.func)
+
     # Ask for name of output folder
     print('Enter name of folder: ', end='')
     folder_name = input()
@@ -368,7 +371,7 @@ if __name__ == '__main__':
                 plt.show(block=False)
                 plt.pause(0.001)
 
-            # *** Future singal processing and other kinds of things can go here in the code ***
+            # *** Future signal processing and other kinds of things can go here in the code ***
             if num_runs == nruns:
                 break
 
