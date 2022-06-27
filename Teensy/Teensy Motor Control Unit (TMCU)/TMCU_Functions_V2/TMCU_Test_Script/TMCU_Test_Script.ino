@@ -24,6 +24,7 @@ void loop() {
 
   //TODO TESTS:
     //Test multiple servo control
+      //Issue with jittering. Unknown cause.
     //Test with M4 script
     //Looks like we won't need steppers. Only test them if we are told we will need them
 
@@ -38,12 +39,12 @@ void loop() {
 
       
   uint8_t data = 40;
-  uint8_t opcode1 = 0b00100010;
-  uint8_t opcode2 = 0b00010010;
-  for(; data<180; data = data + 50){
+  uint8_t opcode1 = 0x12;
+  uint8_t opcode2 = 0x02;
+  for(; data<180; data = data + 15){
      serial.write(opcode1);
      serial.write(data);
-     delay(100);
+     delay(500);
      serial.write(opcode2);
      serial.write(data);  
 
@@ -53,6 +54,6 @@ void loop() {
      Serial.println(data);
 
      
-     delay(100);
+     delay(500);
   }
 }
