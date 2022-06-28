@@ -38,22 +38,16 @@ void loop() {
       //Issue seemed to stem from use of analog pins. Teensy pins 0-13 can be used for servos.
 
       
-  uint8_t data = 40;
-  uint8_t opcode1 = 0x12;
-  uint8_t opcode2 = 0x02;
-  for(; data<180; data = data + 15){
-     serial.write(opcode1);
-     serial.write(data);
-     delay(500);
-     serial.write(opcode2);
-     serial.write(data);  
-
-     Serial.println(opcode1);
-     Serial.println(data);
-     Serial.println(opcode2);
-     Serial.println(data);
-
-     
-     delay(500);
+  uint8_t data = 0;
+  uint8_t opcode = 0x02;
+  for(; data<180; data = data + 3){
+     for(int i = 0; i < 15; i++){
+       serial.write(opcode + i*16);
+       serial.write(data);
+       delay(10);
+       
+       Serial.println(opcode);
+       Serial.println(data);
+    }  
   }
 }
