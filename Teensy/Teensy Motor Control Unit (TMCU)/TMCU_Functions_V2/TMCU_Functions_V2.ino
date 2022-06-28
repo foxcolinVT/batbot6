@@ -4,6 +4,8 @@
  *  Download teensy software at https://www.pjrc.com/teensy/td_download.html
  *  
  *  Adapted by Maximilien Engel 6/7/22  
+ *  
+ *  If left, change SERVO_OPCODE to 0x02. If right, change SERVO_OPCODE to 0x05
  */
 
 #include <Servo.h> 
