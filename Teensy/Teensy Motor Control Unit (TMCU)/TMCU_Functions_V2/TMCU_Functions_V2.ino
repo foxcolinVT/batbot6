@@ -19,7 +19,7 @@ const uint8_t STEPPER_LR_MASK = 0b10000000;         //Mask for isolating l/r ste
 const uint8_t STEPPER_DIRECTION_MASK = 0b01000000;  //Mask for isolating l/r motor direction info from opcode
 
 //Settings
-const uint8_t SERVO_OPCODE = 0x02;                  //Decides whether this handles right or left teensy. 0x02 = left, 0x05 = right.
+const uint8_t SERVO_OPCODE = 0x05;                  //Decides whether this handles right or left teensy. 0x02 = left, 0x05 = right.
 const uint8_t SERVO_MAX_TRAVEL = 150;               //Sets servo max end of travel (in degrees)
 const uint8_t SERVO_MIN_TRAVEL = 40;                //Sets servo min end of travel (in degrees)
 
