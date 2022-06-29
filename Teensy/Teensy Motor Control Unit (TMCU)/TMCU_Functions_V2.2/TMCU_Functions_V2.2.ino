@@ -23,9 +23,11 @@ const uint8_t SERVO_MIN_TRAVEL = 40;                //Sets servo min end of trav
 
 //Constants 
 const int MAX_SERVOS_PER_TEENSY = 12;               //Maximum number of servos per teensy
+const uint8_t SOP = 0xFF;                           //Byte that indicates start of phrase 
+const uint8_t EOP = 0xFE;                           //Byte that indicates end of phrase
 
 //servo declarations
-Servo servoList[MAX_SERVOS_PER_TEENSY];             //array of servos
+Servo servoList[MAX_SERVOS_PER_TEENSY];             //Array of servos
 
 void setup() 
 {

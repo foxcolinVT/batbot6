@@ -6,7 +6,7 @@
  *  Adapted by Maximilien Engel 6/7/22  
  *  
  *  
- *  Version 2.1 - Tests whether sending just 1 byte fixes issue
+ *  Version 2.1 - Tests whether sending just 1 byte fixes servo "twitching" issue
  */
 
 #include <Servo.h> 
@@ -18,7 +18,7 @@ const uint8_t SERVO_INDEX_MASK = 0b00000111;        //Mask for isolating index i
 const uint8_t SERVO_POSD_MASK = 0b11111000;         //Mask for isolating desired servo position
 
 //Settings
-const uint8_t SERVO_MAX_TRAVEL = 150;               //Sets servo max end of travel (in degrees)
+const uint8_t SERVO_MAX_TRAVEL = 160;               //Sets servo max end of travel (in degrees)
 const uint8_t SERVO_MIN_TRAVEL = 40;                //Sets servo min end of travel (in degrees)
 
 //Constants 
