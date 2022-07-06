@@ -53,7 +53,7 @@ uint16_t left_in_index, right_in_index, out_index;  //These essentially function
 Adafruit_ZeroDMA left_in_dma, right_in_dma, out_dma;
 
 //Bitmasks
-uint8_t TEENSY_OPCODE_MASK = 0b00001111;
+uint8_t TEENSY_OPCODE_MASK = 0b00001111;            //Serves to isolate the teensy opcode from the data it carries
 
 void setup() {
   //TODO Serial doesn't work for the first second or two - DON'T WORRY ABOUT THIS, the delay takes care of it.
