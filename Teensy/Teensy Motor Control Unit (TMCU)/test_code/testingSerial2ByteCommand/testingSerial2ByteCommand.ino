@@ -1,3 +1,7 @@
+//Teensy Serial Communication Test code
+//Meant to test the reliability of the serial communication
+//Acts as a platform for serial communication improvements
+
 //Issues with current iteration
   //Does not give feedback if bytes are received out of order
   //Does not give feedback if bytes are dropped (missing)
@@ -17,51 +21,47 @@
   //Expect Motor address, followed by position data
   //If out of order (ie, 2 addresses in a row or 2 data in a row), complain
   //If complaint thrown, then we know that we should implement some kind of feedback- like CRC
-  
-boolean isNew[2]={false, false};
-byte cmd[2]={0, 0};
+
+enum SerialStatus {StartState, ExpectAddress, ExpectData, Error, End};
+enum state = StartState;
+unsigned long = startTime;
+
+byte currData;
   
 void setup() {
   Serial.begin(9600);
+  delay 1000;
+  startTime = millis();
 }
 
 void loop() {
-  if (Serial.available()) {
-    byte currData=Serial.read();
-    //see if flag bit (most significant bit) is true, if so then it is header command
-    if((currData>>7)==1)
-    {
-       isNew[0] = true;
-       cmd[0] = currData;
-       Serial.println("recieved first byte");
-
-       //can also check if second is true
-       //throw away this first one and next one if second is true, also set isNew correctly
-    }
-    else
-    {
-       isNew[1]=true;
-       command[1]=currData;
-       Serial.println("recieved second byte");
-
-       //can also check if first is true
-       //throw away this second one if first isn't true, also set isNew correctly
-    }
-
-    
-    //maybe bool arr for if new command
-    //then int8 arr for each subcommand
-    //if bool arr is both true then start motor control and 0 out bool arr
-    if(isNew[0]==true&&isNew[1]==true)
-    {
-      //print curr command 
-      Serial.println("Recieved a full command, is as follows:");
-      Serial.println(command[0]);
-      Serial.println(command[1]);
-      Serial.println("\n");
-      //start motor control
-      isNew[0]=false;
-      isNew[1]=false;
+  if(Serial.available() > 0){
+    currData = Serial.read();
+    switch(state){
+      case StartState:          //Start state serves to "sync" up the address/position data bytes
+        if((currData>>7) == 1)  //Decide what the next byte's type should be
+          state = ExpectData;
+        else
+          state = ExpectAddress;
+      break;
+      case ExpectAddress:      
+        if((currData>>7)!=1)
+          state = Error;
+        else
+          state = ExpectData;
+      break;
+      case ExpectData:
+        if((currData>>7) == 1)
+          state = Error;
+        else
+          state = ExpectAddress;
+      break;
+      case Error:
+        Serial.print("Error: dropped byte after "); 
+        Serial.print(millis() - startTime);
+        Serial.println(" ms");
+        state = End;
+      break;
     }
   }
 }
