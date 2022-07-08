@@ -4,6 +4,8 @@
  *  Download teensy software at https://www.pjrc.com/teensy/td_download.html
  *  
  *  Adapted by Maximilien Engel 6/7/22  
+ *  
+ *  If left, change SERVO_OPCODE to 0x02. If right, change SERVO_OPCODE to 0x05
  */
 
 #include <Servo.h> 
@@ -13,61 +15,36 @@
 //Masks
 const uint8_t OPCODE_MASK = 0b00001111;             //Mask for isolating opcode info from opcode
 const uint8_t SERVO_INDEX_MASK = 0b11110000;        //Mask for isolating index info from opcode
-const uint8_t STEPPER_LR_MASK = 0b10000000;         //Mask for isolating l/r stepper motor info from opcode
-const uint8_t STEPPER_DIRECTION_MASK = 0b01000000;  //Mask for isolating l/r motor direction info from opcode
 
 //Settings
-const bool R_L = false;                             //Decides whether this handles right or left teensy. false = left, true = right.
-const int TOTAL_NUM_SERVOS = 19;                    //Total number of servos implemented. Half of servos on left, half on right. If num of servos is odd, extra servo goes on right side
-const int SERVO_MAX_TRAVEL = 180;                   //Sets servo max end of travel (in degrees)
-const int SERVO_MIN_TRAVEL = 10;                    //Sets servo min end of travel (in degrees)
+const uint8_t SERVO_OPCODE = 0x05;                  //Decides whether this handles right or left teensy. 0x02 = left, 0x05 = right.
+const uint8_t SERVO_MAX_TRAVEL = 150;               //Sets servo max end of travel (in degrees)
+const uint8_t SERVO_MIN_TRAVEL = 40;                //Sets servo min end of travel (in degrees)
 
 //Constants 
 const int MAX_SERVOS_PER_TEENSY = 12;               //Maximum number of servos per teensy
-const int STEPS = 200;                              //Stepper number of steps
-const int STEPPER_SPEED  = 120;
-
 
 //servo declarations
 Servo servoList[MAX_SERVOS_PER_TEENSY];             //array of servos
-int servoIndexOffset = 0;
 
 void setup() 
-{ 
-  Serial.begin(9600);                               //Used for debugging
+{
   M4SERIAL.begin(9600);                             //Used for communication with M4 
+  Serial.begin(9600);
   
   //Servo Initializations
-  if(R_L){                                          //If it's the right teensy, offset the servo index to a higher address
-    servoIndexOffset = TOTAL_NUM_SERVOS / 2;
-  }
-  
   for(int i = 0; i < MAX_SERVOS_PER_TEENSY; i++){
     servoList[i].attach(i);                         //Starts servo pins at pin 0. Pins 14, 15 used for serial
-    
-    /*
-    Serial.print(i); //debug
-    Serial.print(": ");
-    Serial.println(servoList[i].attached());
-    */
   }
 } 
 
 //Movement of servo
-//Passes servo by reference, passes 1 byte of position data
+//passes 1 byte to indicate which servo, 1 byte of position data
 void moveServo(uint8_t opcode, uint8_t data){
-  uint8_t index = (uint8_t)((opcode & SERVO_INDEX_MASK) >> 4);                      //isolate index
-  
-  if((R_L && index > servoIndexOffset) || (!R_L && index < TOTAL_NUM_SERVOS / 2)){  //if the index corresponds with the side, attempt to move
-    if(data < SERVO_MAX_TRAVEL && data > SERVO_MIN_TRAVEL){                         //Check the desired position is possible
-      servoList[index - servoIndexOffset].write((uint8_t)data);                     //Move servo at "index" to position indicated by "data"
-    }
-  }
-
-  /*
-  Serial.println((uint8_t)((opcode & SERVO_INDEX_MASK) >> 4));  //debug
-  Serial.println((uint8_t)data);
-  */
+  uint8_t index = (uint8_t)((opcode & SERVO_INDEX_MASK) >> 4);                    //isolate index
+  if(data < SERVO_MAX_TRAVEL && data > SERVO_MIN_TRAVEL){                         //Check the desired position is possible
+    servoList[index - servoIndexOffset].write((uint8_t)data);                     //Move servo at "index" to position indicated by "data"
+  } 
 }
 
 //Main function, runs in background
@@ -80,7 +57,7 @@ void loop()
   
   if (M4SERIAL.available() > 1) {             //Requires 2 bytes- opcode and data
     uint8_t opcode = M4SERIAL.read();         //Upper 4 bits of this opcode describe which motor to move (for a max of 14 servos). Lower 4 bits reserved for instructions
-    if((opcode & OPCODE_MASK) == 0x02){
+    if((opcode & OPCODE_MASK) == SERVO_OPCODE){
       uint8_t data = M4SERIAL.read();         //Only retrieve next byte if opcode is valid
       moveServo(opcode, data);
     }
