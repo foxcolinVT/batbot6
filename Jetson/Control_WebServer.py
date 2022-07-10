@@ -13,11 +13,8 @@ func = ''
 
 @app.route('/', methods=['GET', 'POST'])
 def render():
-    if request.method == "POST":
-        func = request.form["function"]
-        return func
-    # elif request.method == "GET":               # if web page sends GET http request, send back pinna data file
-        # return send_file('some/filepath/on/jetson/eardata.txt', attachment_filename='eardata.txt')
+    if request.method == "GET":
+        return send_file('20181111_121335587.txt')
     return render_template('index.html')        # Return the webpage
 
 
