@@ -8,6 +8,9 @@ Created on Thu Jun 16 13:29:29 2022
 import serial
 import time
 import serial.tools.list_ports
+# Vendor and product ID of SAMD51 USB Host (NEED TO CHANGE FOR TEENSY)
+VID = 0x239a
+PID = 0x8031
 
 def connect(port=None):
     """
@@ -43,9 +46,6 @@ def guess_port():
     Discover any locally connected M4s
     :return: COM port name of discovered M4
     """        
-    # Vendor and product ID of SAMD51 USB Host (NEED TO CHANGE FOR TEENSY)
-    VID = 0x239a
-    PID = 0x8031
     # Try to detect any M4s by USB IDs
     available_ports = serial.tools.list_ports.comports()
     possible_ports = [port.device for port in available_ports \
@@ -57,7 +57,16 @@ def guess_port():
     
 
 if __name__ == '__main__':
-    ser = connect()
+    print(f"As of now auto connect is set for PID: {PID} and this VID: {VID}")
+    serChoice = input("either specify a com port (e.x. 'COM3' w/o quotes) or type 1 for auto connect: ")
+    if(serChoice=="1"):
+        ser = connect()
+    else:
+        ser = serial.Serial(serChoice, timeout=1)
+        #this makes it so if it starts to recieve data but 
+        #stops for 0.2 seconds the read will timeout
+        ser.inter_byte_timeout = 0.2
+        reset(ser)
     #print init shit
     print('Input commands as 0x(hexval), with hexvals being no larger then one byte. Type "exit" to quit application')
     
@@ -74,4 +83,3 @@ if __name__ == '__main__':
     quit()          #hopefully this does what i want it to do
     
     #while loop, 
-    
