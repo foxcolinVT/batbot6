@@ -1,5 +1,5 @@
 """
-Performs runs indefinitely, saving results and occassionally plotting them
+Performs runs indefinitely, saving results and occasionally plotting them
 """
 
 import matplotlib.pyplot as plt
@@ -11,6 +11,8 @@ import struct
 import time
 import math
 import os
+from sys import executable
+from subprocess import Popen, CREATE_NEW_CONSOLE
 import Control_WebServer as webserver
 
 # Number of runs between plot updates. Plotting almost doubles the
@@ -20,7 +22,6 @@ PLOT_INTERVAL = 10
 # COM port of the M4; leave None for cross-platform auto-detection
 # PORT = "/dev/ttyTHS1"  #hardware pins 8 and 10
 PORT = None
-
 
 
 
@@ -288,6 +289,8 @@ class BatBot:
         #--------------------------------------------------------------------
         self.set_motion_profile(0,0,1, whichVale.encode())
         return -1
+
+
 #------------------------------------------- Main Loop Below -----------------------------------------------
 
 if __name__ == '__main__':
@@ -296,18 +299,19 @@ if __name__ == '__main__':
     Main thread of the code. Runs the plotting functionality.
     """
 
+    # Execute the web server script in a separate shell to run concurrently
+    Popen([executable, 'Control_WebServer.py'])
+
     # Connect to M4 and make an instance of the BatBot object called "bb"
     bb = BatBot(port=PORT)
-    
-    print('-' * 60)
 
-    print(webserver.func)
+    print('-' * 60)
 
     # Ask for name of output folder
     print('Enter name of folder: ', end='')
     folder_name = input()
 
-    print('-' * 60)    
+    print('-' * 60)
     print(f'Saving to {os.path.dirname(os.path.abspath(__file__))}')
     print('-' * 60)
 
@@ -316,7 +320,7 @@ if __name__ == '__main__':
     n_runs = input()
     if n_runs != "inf":
         nruns = int(n_runs)
-    
+
     # Create a subplot for each channel
     f, (ax1, ax2) = plt.subplots(1, 2, sharey=True)
     ax1.set_xlim([0, 10000])
