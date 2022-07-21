@@ -65,7 +65,7 @@ if __name__ == '__main__':
         ser = serial.Serial(serChoice, timeout=1)
         #this makes it so if it starts to recieve data but 
         #stops for 0.2 seconds the read will timeout
-        ser.inter_byte_timeout = 0.2
+        ser.inter_byte_timeout = 0.4
         reset(ser)
     #print init shit
     print('Input commands as 0x(hexval), with hexvals being no larger then one byte. Type "exit" to quit application')
