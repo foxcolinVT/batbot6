@@ -8,13 +8,16 @@ from flask import Flask, render_template, request, send_file
 
 app = Flask(__name__)
 
-func = ''
+startDeform = False
 
 
 @app.route('/', methods=['GET', 'POST'])
 def render():
     if request.method == "GET":
-        return send_file('20181111_121335587.txt')
+        return send_file('example_data.txt')
+    if request.method == "POST":
+        startDeform = True
+        print(startDeform)
     return render_template('index.html')        # Return the webpage
 
 

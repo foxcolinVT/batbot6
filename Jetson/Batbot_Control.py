@@ -233,7 +233,7 @@ class BatBot:
         # A pulse can range in value for 0 bits to 7 bits, resulting in input 
         # values from 0 to 127
 
-        # 0-0000000      0-0000000      //two bite instance to send. FIrst bit is direction, next seven are steps
+        # 0-0000000      0-0000000      //two bite instance to send. First bit is direction, next seven are steps
         # left servo    right servo
 
         outputTwoBytes = 0
@@ -245,7 +245,7 @@ class BatBot:
                 print("Moving Right Motor")
                 #TODO make the direction code work
                 direction = bin(direction) << 16
-                outputTwoBytes +=  (bin(inputPulse) << 8) + direction
+                outputTwoBytes += (bin(inputPulse) << 8) + direction
 
             elif which == 'B': # Right motor
                 # Code must be send in second byte
@@ -336,6 +336,10 @@ if __name__ == '__main__':
     while True:
         try:
             run_start = time.time()*10**9
+
+            # Start ear deformation during data collection
+            if webserver.startDeform:
+                # need to find which function to call here
 
             # Collect data
             left, right = bb.collect_data()
