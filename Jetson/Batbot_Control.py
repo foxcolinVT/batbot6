@@ -338,7 +338,7 @@ if __name__ == '__main__':
             run_start = time.time()*10**9
 
             # Start ear deformation during data collection
-            if webserver.startDeform:
+            #if webserver.startDeform:
                 # need to find which function to call here
 
             # Collect data

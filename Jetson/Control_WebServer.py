@@ -12,7 +12,7 @@ startDeform = False                              # Indicates whether to start pi
 
 
 @app.route('/', methods=['GET', 'POST'])
-def render():
+def handle_request():
     global startDeform
     if request.method == "GET":                  # Send most recent data file if GET request is received
         return send_file('example_data.txt')
@@ -21,8 +21,7 @@ def render():
             startDeform = True
         if startDeform:
             startDeform = False
-        print(startDeform)
-    return render_template('index.html')        # Return the webpage
+    return '200'                                 # Just return something to make the computer gods happy
 
 
 if __name__ == '__main__':

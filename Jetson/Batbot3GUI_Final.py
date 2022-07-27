@@ -768,7 +768,7 @@ class Window(QtWidgets.QWidget):
         colorMapArr=[]
         for i in range(0, 63):
             colorMapArr.append(color(i))
-        print(len(colorMapArr[0]))
+        #print(len(colorMapArr[0]))
         # pos = [x**(1/3) for x in pos]
         if self.logspace_selected:
             pos = np.logspace(-0.5, 0, nColors)
@@ -854,37 +854,33 @@ class Window(QtWidgets.QWidget):
     def run(self):
         # startTime = time.time()
         self.startBtn.setStyleSheet("background-color: red")
-        self.deformBtn.setStyleSheet("background-color: red")
+        self.deformBtn.setStyleSheet("background-color: green")
         jStr = self.iterationInput.text()
         try:
             self.j = int(jStr)
         except ValueError:
             self.j = 'inf'
-        basepath = '/home/devan/Coding/MuellerLab/BatBotGUI/Data'
-        # /home/devan/BatBot/Data # for Jetson
-        # data = []
-        # with os.scandir(basepath) as entries:
-        #     for entry in entries:
-        #         if entry.is_file():
-        #             data.append(entry.path)
+
+        # Main loop while data acquisition is in progress
         while self.startBtn.isChecked():
             if self.j != 'inf':
                 # self.n initialized in __init__
                 if self.n >= self.j:
                     break
             tStart = time.time()
+
+            # Request file from server if manual upload is not selected
             if self.useUpload == False:
-                #self.file = data[self.n]
-                response = requests.get("http://127.0.0.1:8080")       # Request file from web server
-                with open("newfile.txt", "w") as file:                # Write contents of web server response to text file
-                    file.write(response.text)
+                response = requests.get("http://127.0.0.1:8080")      # Request file from web server
+                with open("newfile.txt", "w") as file:                # Write contents of web server response to text file because
+                    file.write(response.text)                         # by default, it is a "response" object, which is not printable
                 self.file = 'newfile.txt'
             # tAmp = time.time()
-            lamp, ramp = self.amplitude(self.file)  # if useUpload True, file is set in waveformUpload()
+            lamp, ramp = self.amplitude(self.file)                    # Calculate new amplitudes for right and left ear data
             # print("Amplitude: {}".format(time.time() - tAmp))
             if self.deformBtn.isChecked():
-                self.deformBtn.setStyleSheet("background-color: green")
-                requests.post("http://127.0.0.1:8080")
+                self.deformBtn.setStyleSheet("background-color: red")
+                requests.post("http://127.0.0.1:8080")                # Send POST request to start pinna deformation
             if self.sgBtn.isChecked():
                 # tSg = time.time()
                 self.build_sg(self.leftPlot, self.rightPlot, lamp, ramp)
