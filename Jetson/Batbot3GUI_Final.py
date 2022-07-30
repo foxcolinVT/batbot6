@@ -78,10 +78,6 @@ class Window(QtWidgets.QWidget):
 
         # VARIABLES
         self.file = "20181111_121335587.txt"    # IMPORTANT: initial displayed data
-        # response = requests.get("http://127.0.0.1:8080")      # Request file from web server
-        # with open("newfile.txt", "w") as file:                # Write contents of web server response to text file
-        #     file.write(response.text)
-        # self.file = 'newfile.txt'
         self.fps = 0.0                          # frames per second
         self.tPassed = 0                        # time elapsed
         self.timeArray = np.linspace(self.beginTime, self.stopTime, self.numDataPoints)  # array of sample time points
