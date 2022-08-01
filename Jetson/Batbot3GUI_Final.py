@@ -63,7 +63,7 @@ class Window(QtWidgets.QWidget):
         self.width = 800        # width of the window (pixels)
         self.height = 430       # height of the window (pixels)
         self.plotWidth = 375    # width of each plot (pixels)
-        self.numDataPoints = int(10e3)      # number of data points per file
+        self.numDataPoints = 28672      # number of data points per file
         self.samplingFrequency = int(400e3)    # sampling frequency (Hz)
         self.beginTime = 0      # start time of sampling
         self.stopTime = 0.025   # stop time of sampling (seconds)
@@ -77,7 +77,7 @@ class Window(QtWidgets.QWidget):
         self.nMaxString = 'Nmax: '               # maximum number of echoes
 
         # VARIABLES
-        self.file = "20181111_121335587.txt"    # IMPORTANT: initial displayed data
+        self.file = "test.txt"    # IMPORTANT: initial displayed data
         self.fps = 0.0                          # frames per second
         self.tPassed = 0                        # time elapsed
         self.timeArray = np.linspace(self.beginTime, self.stopTime, self.numDataPoints)  # array of sample time points
@@ -572,14 +572,14 @@ class Window(QtWidgets.QWidget):
         Creates the left and right colorbars and inserts them in the plots.
         """
         # Needs to have no parameters so it can be used by linspace / logspace button.connect
-        if self.lCbar == None:
+        if self.lCbar != 1:
             if self.logspace_selected:
                 self.lCbar = ColorBarItem( values= (self.minAmp, 0), colorMap = pg.colormap.get('CET-L9'), interactive= False, label= "Amplitude (dB)", width= 15)
                 self.lCbar.setImageItem(self.lImg, insert_in= self.leftPlot)
             else:
                 self.lCbar = ColorBarItem( values= (0, 1), colorMap = self.colorMap, interactive= False, label= "Amplitude", width= 15)
                 self.lCbar.setImageItem(self.lImg, insert_in= self.leftPlot)
-        if self.rCbar == None:
+        if self.rCbar != 1:
             if self.logspace_selected:
                 self.rCbar = ColorBarItem( values= (self.minAmp, 0), colorMap = pg.colormap.get('CET-L9'), interactive= False, label= "Amplitude (dB)", width = 15)
                 self.rCbar.setImageItem(self.rImg, insert_in= self.rightPlot)
@@ -635,6 +635,8 @@ class Window(QtWidgets.QWidget):
 
         leftPlot.autoRange()
         rightPlot.autoRange()
+        
+        self.create_cbar()  # creates the colorbar if the object isn't noneType
 
     def fourier_transform(self, lamp, ramp):
         """
@@ -707,6 +709,8 @@ class Window(QtWidgets.QWidget):
         # leftPlot.setAxisItems({'bottom': xaxis})
         # leftPlot.scale(xscale, yscale)
         # rightPlot.scale(xscale, yscale)
+        
+        self.create_cbar()  # creates the colorbar if the object isn't noneType
 
     def build_sg(self, left_plot, right_plot, ldata, rdata):
         """
@@ -790,6 +794,8 @@ class Window(QtWidgets.QWidget):
         lSxx = lSxx[fLowcut:fHighcut]
         rSxx = rSxx[fLowcut:fHighcut]
         f = f[fLowcut:fHighcut]
+        print(self.lowcut)
+        print(self.highcut)
 
         # Truncating the low amplitudes
         i = 0
