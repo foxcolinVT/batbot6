@@ -1,7 +1,7 @@
 """
 Created on Thurs June 2 2022
 @author: Hayley Wisman
-Sets up a web server to control the batbot remotely via wifi
+Sets up a simple Flask web server to control and communicate with the batbot remotely via wifi.
 """
 
 from flask import Flask, render_template, request, send_file

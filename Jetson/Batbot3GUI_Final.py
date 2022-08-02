@@ -3,7 +3,7 @@
 """
 Created on Tue Jun 23 12:33:23 2020
 @author: devan
-Updated: July 7, 2022
+Updated: August 02, 2022
 By: Colin Fox, Hayley Wisman
 """
 
@@ -409,7 +409,7 @@ class Window(QtWidgets.QWidget):
         Updates the plots based on current settings
         """
 
-        lamp, ramp = self.amplitude(self.file)    # Find data source and switch to web server file request
+        lamp, ramp = self.amplitude(self.file)
         if self.sgBtn.isChecked():
             self.build_sg(self.leftPlot, self.rightPlot, lamp, ramp)
         elif self.smBtn.isChecked():
@@ -511,7 +511,7 @@ class Window(QtWidgets.QWidget):
         data = []
         l_data = []
         r_data = []
-        file = open(filename, newline='\n')    # http request to retrieve file
+        file = open(filename, newline='\n')
 
         # TODO: figure out why i - 0, what 1.65 - (-1.65) means, why divide by 4095, MAKE INTO VARIABLES
 
@@ -566,7 +566,8 @@ class Window(QtWidgets.QWidget):
         if self.rCbar != None:
             self.rightPlot.layout.removeItem(self.rCbar)
             self.rCbar = None  # solves problem with "ghost colorbar" in top left corner of plot
-    
+
+    # Important for proper display of the plots!
     def create_cbar(self):
         """
         Creates the left and right colorbars and inserts them in the plots.

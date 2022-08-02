@@ -299,7 +299,7 @@ if __name__ == '__main__':
     Main thread of the code. Runs the plotting functionality.
     """
 
-    # Execute the web server script in a separate shell to run concurrently
+    # Subprocess call executes the web server script in a separate shell to run concurrently
     Popen([executable, 'Control_WebServer.py'])
 
     # Connect to M4 and make an instance of the BatBot object called "bb"
@@ -316,6 +316,7 @@ if __name__ == '__main__':
     print('-' * 60)
 
     # Ask user if they want to limit number of runs
+    # Number of runs also set in GUI
     print('Enter number of runs to perform (inf for continuous runs): ')
     n_runs = input()
     if n_runs != "inf":
@@ -339,7 +340,7 @@ if __name__ == '__main__':
 
             # Start ear deformation during data collection
             #if webserver.startDeform:
-                # need to find which function to call here
+                # need to form one cohesive function to call here that initiates pinna deformation
 
             # Collect data
             left, right = bb.collect_data()
