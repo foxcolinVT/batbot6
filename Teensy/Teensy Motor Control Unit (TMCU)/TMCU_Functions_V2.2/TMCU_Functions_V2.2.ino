@@ -85,7 +85,7 @@ bool isReadOk(){
 //Pull elements from serial buffer as they arrive
 //Decide whether to throw an error
 //Sets FSM state
-void serialEvent1(){
+void serialEvent3(){
   //Flush out irrelevant bytes
   while(M4SERIAL.available() > 0 && M4SERIAL.peek() != SOP){
     //TODO this should bring up an error- resend current set of movement

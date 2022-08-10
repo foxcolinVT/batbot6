@@ -19,7 +19,7 @@ const uint8_t SERVO_INDEX_MASK = 0b11110000;        //Mask for isolating index i
 //Settings
 const uint8_t SERVO_OPCODE = 0x05;                  //Decides whether this handles right or left teensy. 0x02 = left, 0x05 = right.
 const uint8_t SERVO_MAX_TRAVEL = 150;               //Sets servo max end of travel (in degrees)
-const uint8_t SERVO_MIN_TRAVEL = 40;                //Sets servo min end of travel (in degrees)
+const uint8_t SERVO_MIN_TRAVEL = 30;                //Sets servo min end of travel (in degrees)
 
 //Constants 
 const int MAX_SERVOS_PER_TEENSY = 12;               //Maximum number of servos per teensy
@@ -29,7 +29,7 @@ Servo servoList[MAX_SERVOS_PER_TEENSY];             //array of servos
 
 void setup() 
 {
-  M4SERIAL.begin(9600);                             //Used for communication with M4 
+  M4SERIAL.begin(9600);                             //Used for communication with M4. Tx on 14, Rx on 15
   Serial.begin(9600);
   
   //Servo Initializations
@@ -43,7 +43,7 @@ void setup()
 void moveServo(uint8_t opcode, uint8_t data){
   uint8_t index = (uint8_t)((opcode & SERVO_INDEX_MASK) >> 4);                    //isolate index
   if(data < SERVO_MAX_TRAVEL && data > SERVO_MIN_TRAVEL){                         //Check the desired position is possible
-    servoList[index - servoIndexOffset].write((uint8_t)data);                     //Move servo at "index" to position indicated by "data"
+    servoList[index].write((uint8_t)data);                     //Move servo at "index" to position indicated by "data"
   } 
 }
 
