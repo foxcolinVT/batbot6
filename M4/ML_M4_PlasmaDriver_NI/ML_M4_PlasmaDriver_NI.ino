@@ -1,4 +1,12 @@
+/*
+ * Author: Ben Westcott
+ * Date created: 8/10/22
+ */
+
 #include <Arduino.h>
+
+// Note: macros/data structures used w/o prefixes ML (Mueller Lab) 
+// exist at ${PATH_TO_ARDUINO_CONFIGS}/packages/adafruit/tools/CMSIS-Atmel/1.2.2/CMSIS/Device/ATMEL/samd51
 
 #define ML_MCLK_UNDIV 120000000
 #define ML_MCLK_CPUDIV1 (MCLK_CPUDIV_DIV(MCLK_CPUDIV_DIV_DIV1_Val))
@@ -10,6 +18,13 @@
 
 // Channel enable, GCLK2, WRTLCK - disable future writing to reg
 #define ML_GCLK2_PCHCTRL (GCLK_PCHCTRL_CHEN | GCLK_PCHCTRL_GEN_GCLK2 | GCLK_PCHCTRL_WRTLOCK)
+
+// TODO: Finish PIOC controller programming
+// TODO: APB/AHB coms more preferable for ADC/DAC operation? DMA exists on main bus matrix so idk if its more efficient to use GCLK and wait to sync w/ peripheral clocks
+// TODO: Requests to DMA / look at ZeroDMA library since it could end up overwriting some modules. If it does, first try patching ZeroDMA, last resort is to directly program DMA 
+// TODO: Play with deadtime values and dither values (optimize for a push/pull operation). Also look at PIOC for push/pull pin operation
+// TODO: Interrupts
+// TODO: If DAC, ADC, TCCx all exist in same clock domain, consider synchronization methods? 
 
 static void GCLK0_init(void){
 
@@ -162,16 +177,7 @@ void TCC0_init(void){
   const PinDescription P_DESC_TCC0 = g_APinDescription[ML_M4_TCC0_PIN];
 
   PORT->Group[P_DESC_TCC0.ulPort].PINCFG[P_DESC_TCC0.ulPin] = PORT_PINCFG_PMUXEN; 
-
-  
-                                                              
-                                                              
-  
-  
-
-
-  
-
+                                                            
 }
 
 void setup() {
