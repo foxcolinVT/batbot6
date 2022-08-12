@@ -57,9 +57,15 @@ static void GCLK0_init(void){
 
 #define GCLK0_FREQ (ML_MCLK_UNDIV/(1 * ML_HCLK_INITIAL_DIV))             // 60 Mhz
 
-#define ML_M4_TCC0_PIN 7
-#define ML_TCC0_CH0_PMUXE 6
+#define ML_M4_TCC0_CH0_PIN 7
 #define ML_PB12_PIN 12
+#define ML_TCC0_CH0_PMUXE 0x6                                            // pin # = 2*peripheral (even)
+#define ML_TCC0_CH0 0x0
+
+#define ML_M4_TCC0_CH3_PIN 6
+#define ML_PB15_PIN 15
+#define ML_TCC0_CH3_PMUXO 0x7                                              // pin # = 2*peripheral + 1 (odd)
+#define ML_TCC0_CH3 0x3
 
 void TCC0_init(void){
       
@@ -164,30 +170,44 @@ void TCC0_init(void){
   // capture compare reg
   // sync require on read and write
   
-  TCC0->CC[0].reg = TCC_CC_CC(3);                                         // CC value (18 bits)
+  TCC0->CC[ML_TCC0_CH0].reg = TCC_CC_CC(3);                             // CC value (18 bits)
   //              TCC_CC_DITH4_DITHER(1)                                // dithering cycle number
   //              TCC_CC_DITH4_CC(1)                                    // CC value (if dithering enabled)
 
-  while(TCC0->SYNCBUSY.bit.CC0);
+  TCC0->CC[ML_TCC0_CH3].reg = TCC_CC_CC(3);
   
+  while(TCC0->SYNCBUSY.bit.CC0 | TCC0->SYNCBUSY.bit.CC3);
+
+  TCC0->DRVCTRL.reg |= TCC_DRVCTRL_INVEN3;                              // inverts ch3 wave, we want complimentary outs
   
   // Channel x CC buffer value regs: CCBUFx (force update w/ CTRLBSET.CMD=0x3)
   // capture compare buffer reg TCC0->CCBUF.reg, similar to PERBUF (pg 1882), NEEDS to wait for SYNC on read and write*
 
-  const EPortType TCC0_PORT_GRP = g_APinDescription[ML_M4_TCC0_PIN].ulPort;
-  const uint32_t TCC0_PIN = g_APinDescription[ML_M4_TCC0_PIN].ulPin;
+  const EPortType TCC0_PORT_GRP = g_APinDescription[ML_M4_TCC0_CH0_PIN].ulPort;
+  
+  const uint32_t TCC0_PIN_CH0 = g_APinDescription[ML_M4_TCC0_CH0_PIN].ulPin;
 
   // pin configuration reg
-  PORT->Group[TCC0_PORT_GRP].PINCFG[TCC0_PIN].reg |=  PORT_PINCFG_PMUXEN;  // peripheral multiplexer enable
+  PORT->Group[TCC0_PORT_GRP].PINCFG[TCC0_PIN_CH0].reg |=  PORT_PINCFG_PMUXEN;  // peripheral multiplexer enable
                                                     //PORT_PINCFG_DRVSTR   // enable stronger drive strength
 
   
   // shift TCC0_PIN right by one since PMUX arr length is 16, and PINCFG arr len is 32
-  PORT->Group[TCC0_PORT_GRP].PMUX[TCC0_PIN >> 1].reg |= PORT_PMUX_PMUXE(ML_TCC0_CH0_PMUXE); // peripheral multiplexer selection for even number pin (for odd: PORT_PMUX_PMUXO)
+  PORT->Group[TCC0_PORT_GRP].PMUX[TCC0_PIN_CH0 >> 1].reg |= PORT_PMUX_PMUXE(ML_TCC0_CH0_PMUXE); // peripheral multiplexer selection for even number pin (for odd: PORT_PMUX_PMUXO)
 
   // port dirset reg
- // PORT->Group[TCC0_PORT_GRP].DIRSET.reg |= PORT_DIRSET_DIRSET(ML_PB12_PIN);                 // Set for output, else input
+  PORT->Group[TCC0_PORT_GRP].DIRSET.reg |= PORT_DIRSET_DIRSET(ML_PB12_PIN);                 // Set for output, else input
+
+  // pretty much the same as CH0 pin setup
+  const uint32_t TCC0_PIN_CH3 = g_APinDescription[ML_M4_TCC0_CH3_PIN].ulPin;
+
+  PORT->Group[TCC0_PORT_GRP].PINCFG[TCC0_PIN_CH3].reg |= PORT_PINCFG_PMUXEN;
+
+  PORT->Group[TCC0_PORT_GRP].PMUX[TCC0_PIN_CH3 >> 1].reg |= PORT_PMUX_PMUXO(ML_TCC0_CH3_PMUXO);
+
+  PORT->Group[TCC0_PORT_GRP].DIRSET.reg |= PORT_DIRSET_DIRSET(ML_PB15_PIN);
   
+
 
   // TCC enable: set CTRLA.ENABLE
   TCC0->CTRLA.reg |= TCC_CTRLA_ENABLE;
