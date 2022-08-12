@@ -50,8 +50,8 @@ static void GCLK0_init(void){
   //GCLK->PCHCTRL[DAC_GCLK_ID].reg =  ML_GCLK2_PCHCTRL;
 
   // PCHCTRL for TCC0/1/2
- // GCLK->PCHCTRL[TCC0_GCLK_ID].reg = ML_GCLK2_PCHCTRL;                   // TCC0 and TCC1 ID are the same, so TCC1 is implicitly set
-  GCLK->PCHCTRL[TCC2_GCLK_ID].reg = ML_GCLK2_PCHCTRL;                     // TCC3 set for same above reason
+  GCLK->PCHCTRL[TCC0_GCLK_ID].reg = ML_GCLK2_PCHCTRL;                   // TCC0 and TCC1 ID are the same, so TCC1 is implicitly set
+  //GCLK->PCHCTRL[TCC2_GCLK_ID].reg = ML_GCLK2_PCHCTRL;                     // TCC3 set for same above reason
 
 }
 
@@ -59,11 +59,17 @@ static void GCLK0_init(void){
 
 #define ML_M4_TCC0_PIN 7
 #define ML_TCC0_CH0_PMUXE 6
+#define ML_PB12_PIN 12
 
 void TCC0_init(void){
       
   // disable TCC
+  TCC0->CTRLA.reg &= ~TCC_CTRLA_ENABLE;
+  while(TCC0->SYNCBUSY.bit.ENABLE);
+  
   // send software reset of TCC CTRLA.SWRST
+  TCC0->CTRLA.reg |= TCC_CTRLA_SWRST;
+  while(TCC0->SYNCBUSY.bit.SWRST);
 
   /*
   * Syncronization:
@@ -80,7 +86,7 @@ void TCC0_init(void){
   // STOP cmd: CTRLB.CMD=0x2
   // PAUSE event: EVCTRL.EVACT1=0x3, STOP, EVCTRL.EVACT0=0x3, START
   // EVENT ACTIONS**
-  TCC0->CTRLA.reg = TCC_CTRLA_PRESCALER_DIV4 |
+  TCC0->CTRLA.reg = TCC_CTRLA_PRESCALER_DIV2 |
                   TCC_CTRLA_PRESCSYNC_PRESC;                             // try TC_CTRLA_PRESYNC_GCLK or TC_CTRLA_PRESYNC_RESYNC
   //              TCC_CTRLA_RESOLUTION_DITH4 |                           // enable dithering every 16 PWM frames
   //              TCC_CTRLA_RUNSTDBY;                                    // run TCC when MP in standby
@@ -135,13 +141,13 @@ void TCC0_init(void){
   * 
   */
   TCC0->WAVE.reg = TCC_WAVE_WAVEGEN_NFRQ |                              // normal frequency operation
-                   TCC_WAVE_RAMP_RAMP2;                                 // ramp 2 operation
+                   TCC_WAVE_RAMP_RAMP2   |                              // ramp 2 operation
                    TCC_WAVE_POL0;                                       // channel x polarity set
   while(TCC0->SYNCBUSY.bit.WAVE);
   
   
   // period reg
-  TCC0->PER.reg = TCC_PER_PER(1);                                       // period value set
+  TCC0->PER.reg = TCC_PER_PER(10);                                       // period value set
   //              TCC_PER_DITH4_DITHER(1) |                             // dithering cycle number
   //              TCC_PER_DITH4_PER(1)    |                             // period value set (if dithering enabled)
   while(TCC0->SYNCBUSY.bit.PER);
@@ -157,35 +163,45 @@ void TCC0_init(void){
   
   // capture compare reg
   // sync require on read and write
-  /*
-  TCC0->CC0.reg = TCC_CC_CC(1);                                         // CC value (18 bits)
+  
+  TCC0->CC[0].reg = TCC_CC_CC(3);                                         // CC value (18 bits)
   //              TCC_CC_DITH4_DITHER(1)                                // dithering cycle number
   //              TCC_CC_DITH4_CC(1)                                    // CC value (if dithering enabled)
 
   while(TCC0->SYNCBUSY.bit.CC0);
-  */
+  
   
   // Channel x CC buffer value regs: CCBUFx (force update w/ CTRLBSET.CMD=0x3)
   // capture compare buffer reg TCC0->CCBUF.reg, similar to PERBUF (pg 1882), NEEDS to wait for SYNC on read and write*
-    
+
+  const EPortType TCC0_PORT_GRP = g_APinDescription[ML_M4_TCC0_PIN].ulPort;
+  const uint32_t TCC0_PIN = g_APinDescription[ML_M4_TCC0_PIN].ulPin;
+
+  // pin configuration reg
+  PORT->Group[TCC0_PORT_GRP].PINCFG[TCC0_PIN].reg |=  PORT_PINCFG_PMUXEN;  // peripheral multiplexer enable
+                                                    //PORT_PINCFG_DRVSTR   // enable stronger drive strength
+
   
- 
+  // shift TCC0_PIN right by one since PMUX arr length is 16, and PINCFG arr len is 32
+  PORT->Group[TCC0_PORT_GRP].PMUX[TCC0_PIN >> 1].reg |= PORT_PMUX_PMUXE(ML_TCC0_CH0_PMUXE); // peripheral multiplexer selection for even number pin (for odd: PORT_PMUX_PMUXO)
+
+  // port dirset reg
+ // PORT->Group[TCC0_PORT_GRP].DIRSET.reg |= PORT_DIRSET_DIRSET(ML_PB12_PIN);                 // Set for output, else input
+  
+
   // TCC enable: set CTRLA.ENABLE
-  TCC0->CTRLA.bit.ENABLE = 0x1;
+  TCC0->CTRLA.reg |= TCC_CTRLA_ENABLE;
   while(TCC0->SYNCBUSY.bit.ENABLE);
-
-  const PinDescription P_DESC_TCC0 = g_APinDescription[ML_M4_TCC0_PIN];
-
-  PORT->Group[P_DESC_TCC0.ulPort].PINCFG[P_DESC_TCC0.ulPin] = PORT_PINCFG_PMUXEN; 
-                                                            
+                                                                   
 }
 
 void setup() {
-  // put your setup code here, to run once:
+
+  GCLK0_init();
+  TCC0_init();
 
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
 
 }
