@@ -3,7 +3,7 @@
 """
 Created on Tue Jun 23 12:33:23 2020
 @author: devan
-Updated: July 7, 2022
+Updated: August 02, 2022
 By: Colin Fox, Hayley Wisman
 """
 
@@ -63,7 +63,7 @@ class Window(QtWidgets.QWidget):
         self.width = 800        # width of the window (pixels)
         self.height = 430       # height of the window (pixels)
         self.plotWidth = 375    # width of each plot (pixels)
-        self.numDataPoints = int(10e3)      # number of data points per file
+        self.numDataPoints = 28672      # number of data points per file
         self.samplingFrequency = int(400e3)    # sampling frequency (Hz)
         self.beginTime = 0      # start time of sampling
         self.stopTime = 0.025   # stop time of sampling (seconds)
@@ -77,11 +77,7 @@ class Window(QtWidgets.QWidget):
         self.nMaxString = 'Nmax: '               # maximum number of echoes
 
         # VARIABLES
-        #self.file = "20181111_121335587.txt"    # IMPORTANT: initial displayed data
-        response = requests.get("http://127.0.0.1:8080")      # Request file from web server
-        with open("newfile.txt", "w") as file:                # Write contents of web server response to text file
-            file.write(response.text)
-        self.file = 'newfile.txt'
+        self.file = "test.txt"    # IMPORTANT: initial displayed data
         self.fps = 0.0                          # frames per second
         self.tPassed = 0                        # time elapsed
         self.timeArray = np.linspace(self.beginTime, self.stopTime, self.numDataPoints)  # array of sample time points
@@ -94,6 +90,7 @@ class Window(QtWidgets.QWidget):
         self.nfft = self.nperseg                # not really sure
         self.dBCutoff = 70
         self.truncated_amp_val = -100  # The value truncated amplitude values are changed to in the build_sg function
+        self.useUpload = False
 
         self.lCbar = None
         self.rCbar = None
@@ -412,7 +409,7 @@ class Window(QtWidgets.QWidget):
         Updates the plots based on current settings
         """
 
-        lamp, ramp = self.amplitude(self.file)    # Find data source and switch to web server file request
+        lamp, ramp = self.amplitude(self.file)
         if self.sgBtn.isChecked():
             self.build_sg(self.leftPlot, self.rightPlot, lamp, ramp)
         elif self.smBtn.isChecked():
@@ -514,7 +511,7 @@ class Window(QtWidgets.QWidget):
         data = []
         l_data = []
         r_data = []
-        file = open(filename, newline='\n')    # http request to retrieve file
+        file = open(filename, newline='\n')
 
         # TODO: figure out why i - 0, what 1.65 - (-1.65) means, why divide by 4095, MAKE INTO VARIABLES
 
@@ -569,25 +566,26 @@ class Window(QtWidgets.QWidget):
         if self.rCbar != None:
             self.rightPlot.layout.removeItem(self.rCbar)
             self.rCbar = None  # solves problem with "ghost colorbar" in top left corner of plot
-    
+
+    # Important for proper display of the plots!
     def create_cbar(self):
         """
         Creates the left and right colorbars and inserts them in the plots.
         """
         # Needs to have no parameters so it can be used by linspace / logspace button.connect
-        if self.lCbar == None:
+        if self.lCbar != 1:
             if self.logspace_selected:
-                self.lCbar = ColorBarItem( values= (self.minAmp, 0), cmap = pg.colormap.get('CET-L9'), interactive= False, label= "Amplitude (dB)", width= 15)
+                self.lCbar = ColorBarItem( values= (self.minAmp, 0), colorMap = pg.colormap.get('CET-L9'), interactive= False, label= "Amplitude (dB)", width= 15)
                 self.lCbar.setImageItem(self.lImg, insert_in= self.leftPlot)
             else:
-                self.lCbar = ColorBarItem( values= (0, 1), cmap = self.cmap, interactive= False, label= "Amplitude", width= 15)
+                self.lCbar = ColorBarItem( values= (0, 1), colorMap = self.colorMap, interactive= False, label= "Amplitude", width= 15)
                 self.lCbar.setImageItem(self.lImg, insert_in= self.leftPlot)
-        if self.rCbar == None:
+        if self.rCbar != 1:
             if self.logspace_selected:
-                self.rCbar = ColorBarItem( values= (self.minAmp, 0), cmap = pg.colormap.get('CET-L9'), interactive= False, label= "Amplitude (dB)", width = 15)
+                self.rCbar = ColorBarItem( values= (self.minAmp, 0), colorMap = pg.colormap.get('CET-L9'), interactive= False, label= "Amplitude (dB)", width = 15)
                 self.rCbar.setImageItem(self.rImg, insert_in= self.rightPlot)
             else:
-                self.rCbar = ColorBarItem( values= (0, 1), cmap = self.cmap, interactive= False, label= "Amplitude", width = 15)
+                self.rCbar = ColorBarItem( values= (0, 1), colorMap = self.colorMap, interactive= False, label= "Amplitude", width = 15)
                 self.rCbar.setImageItem(self.rImg, insert_in= self.rightPlot)
     
     def linscale_cbar(self):
@@ -638,6 +636,8 @@ class Window(QtWidgets.QWidget):
 
         leftPlot.autoRange()
         rightPlot.autoRange()
+        
+        self.create_cbar()  # creates the colorbar if the object isn't noneType
 
     def fourier_transform(self, lamp, ramp):
         """
@@ -710,6 +710,8 @@ class Window(QtWidgets.QWidget):
         # leftPlot.setAxisItems({'bottom': xaxis})
         # leftPlot.scale(xscale, yscale)
         # rightPlot.scale(xscale, yscale)
+        
+        self.create_cbar()  # creates the colorbar if the object isn't noneType
 
     def build_sg(self, left_plot, right_plot, ldata, rdata):
         """
@@ -767,7 +769,7 @@ class Window(QtWidgets.QWidget):
         colorMapArr=[]
         for i in range(0, 63):
             colorMapArr.append(color(i))
-        print(len(colorMapArr[0]))
+        #print(len(colorMapArr[0]))
         # pos = [x**(1/3) for x in pos]
         if self.logspace_selected:
             pos = np.logspace(-0.5, 0, nColors)
@@ -779,10 +781,10 @@ class Window(QtWidgets.QWidget):
         for i in range(63):
             colorArr[i]=(colorFunc(i))
         
-        self.cmap = pg.ColorMap(pos, colorArr)
+        self.colorMap = pg.ColorMap(pos, colorArr)
         
 
-        self.lut = self.cmap.getLookupTable(0.0, 1.0, 256)
+        self.lut = self.colorMap.getLookupTable(0.0, 1.0, 256)
         self.lImg.setLookupTable(self.lut)
         self.rImg.setLookupTable(self.lut)
 
@@ -793,6 +795,8 @@ class Window(QtWidgets.QWidget):
         lSxx = lSxx[fLowcut:fHighcut]
         rSxx = rSxx[fLowcut:fHighcut]
         f = f[fLowcut:fHighcut]
+        print(self.lowcut)
+        print(self.highcut)
 
         # Truncating the low amplitudes
         i = 0
@@ -853,30 +857,33 @@ class Window(QtWidgets.QWidget):
     def run(self):
         # startTime = time.time()
         self.startBtn.setStyleSheet("background-color: red")
-        self.deformBtn.setStyleSheet("background-color: red")
+        self.deformBtn.setStyleSheet("background-color: green")
         jStr = self.iterationInput.text()
         try:
             self.j = int(jStr)
         except ValueError:
             self.j = 'inf'
-        basepath = '/home/devan/Coding/MuellerLab/BatBotGUI/Data'
-        # /home/devan/BatBot/Data # for Jetson
-        data = []
-        with os.scandir(basepath) as entries:
-            for entry in entries:
-                if entry.is_file():
-                    data.append(entry.path)
+
+        # Main loop while data acquisition is in progress
         while self.startBtn.isChecked():
             if self.j != 'inf':
                 # self.n initialized in __init__
                 if self.n >= self.j:
                     break
             tStart = time.time()
+
+            # Request file from server if manual upload is not selected
             if self.useUpload == False:
-                self.file = data[self.n]
+                response = requests.get("http://127.0.0.1:8080")      # Request file from web server
+                with open("newfile.txt", "w") as file:                # Write contents of web server response to text file because
+                    file.write(response.text)                         # by default, it is a "response" object, which is not printable
+                self.file = 'newfile.txt'
             # tAmp = time.time()
-            lamp, ramp = self.amplitude(self.file)  # if useUpload True, file is set in waveformUpload()
+            lamp, ramp = self.amplitude(self.file)                    # Calculate new amplitudes for right and left ear data
             # print("Amplitude: {}".format(time.time() - tAmp))
+            if self.deformBtn.isChecked():
+                self.deformBtn.setStyleSheet("background-color: red")
+                requests.post("http://127.0.0.1:8080")                # Send POST request to start pinna deformation
             if self.sgBtn.isChecked():
                 # tSg = time.time()
                 self.build_sg(self.leftPlot, self.rightPlot, lamp, ramp)
