@@ -48,13 +48,15 @@ class BatBot:
         vid = 0x239a
         pid = 0x8031
 
-        
+        #Vendor and product ID of Teensy
+        vid_teensy  = 0x16C0
+        pid_teensy = 0x0483
 
         # Try to deduce the serial port
         #if not port:
         port1 = self.guess_port(pid, vid)
 
-        port2 = self.guess_port(pid,vid)
+        port2 = self.guess_port(pid,vid)        #TODO wrong pid/vid for teensy
 
         # Connect to the device
         self.ser1 = serial.Serial(port1)
@@ -88,7 +90,7 @@ class BatBot:
 
         # Yell at the user if no M4 was found
         if not any(possible_ports):
-            raise Exception('M4 not found: verify that it is properly connected')
+            raise Exception('Board not found: verify that it is properly connected')
 
         return possible_ports[0]
 
@@ -110,6 +112,8 @@ class BatBot:
 
     def writeM4(self, packet):
         self.ser1.write(packet) 
+
+    #TODO write method for Teensies
 
     #as of now, the only read needed is for m4
     def read(self, length):
