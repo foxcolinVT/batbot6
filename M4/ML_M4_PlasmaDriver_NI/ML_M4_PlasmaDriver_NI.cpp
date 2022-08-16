@@ -49,7 +49,7 @@ static void GCLK0_init(void){
   //GCLK->PCHCTRL[ADC0_GCLK_ID].reg = ML_GCLK2_PCHCTRL;
 
   // Set DAC in GCLK PCHCTRL
-  //GCLK->PCHCTRL[DAC_GCLK_ID].reg =  ML_GCLK2_PCHCTRL;
+  GCLK->PCHCTRL[DAC_GCLK_ID].reg =  ML_GCLK2_PCHCTRL;
 
   // PCHCTRL for TCC0/1/2
   GCLK->PCHCTRL[TCC0_GCLK_ID].reg = ML_GCLK2_PCHCTRL;                   // TCC0 and TCC1 ID are the same, so TCC1 is implicitly set
@@ -189,6 +189,10 @@ void TCC0_init(void){
                     TCC_INTENSET_FAULT1 |  
                     TCC_INTENSET_MC(0)  |                               // Match or capture channel x
   */
+
+ TCC0->INTENSET.reg = TCC_INTENSET_OVF;
+ NVIC_EnableIRQ(TCC0_0_IRQn);
+
   
   // TCCO->INTFLAG.reg                                                  // for reading interrupt status (pg 1866)
   // TCC0->STATUS.reg                                                   // reading tcc status (pg 1868)
@@ -208,7 +212,7 @@ void TCC0_init(void){
   * f_pwm = f_GCLK/(N*(TOP+1)), N is prescalar
   * 
   */
-  TCC0->WAVE.reg = TCC_WAVE_WAVEGEN_NFRQ |                              // normal frequency operation
+  TCC0->WAVE.reg = TCC_WAVE_WAVEGEN_NPWM |                              // normal frequency operation
                    TCC_WAVE_RAMP_RAMP2   |                              // ramp 2 operation
                    TCC_WAVE_POL0 | TCC_WAVE_POL1;                                      // channel x polarity set
   while(TCC0->SYNCBUSY.bit.WAVE);
@@ -253,6 +257,7 @@ static void TCC0_DT_set(uint8_t dth, uint8_t dtl){
   TCC0->WEXCTRL.reg |= (TCC_WEXCTRL_DTIEN0 | TCC_WEXCTRL_DTIEN1 | TCC_WEXCTRL_DTLS(dtl) | TCC_WEXCTRL_DTHS(dth));
 }
 
+
 // mode: 4, 5, 6
 static void TCC0_DITH_set(char mode, uint64_t cycles, uint64_t period, uint64_t compare){
 
@@ -289,15 +294,16 @@ static void TCC0_DITH_set(char mode, uint64_t cycles, uint64_t period, uint64_t 
   TCC0->CC[ML_TCC0_CH0].reg = CC_DITH_msk;
   TCC0->CC[ML_TCC0_CH1].reg = CC_DITH_msk;
   while(TCC0->SYNCBUSY.bit.CC0 | TCC0->SYNCBUSY.bit.CC1);
-
 }
 
 #define ML_DMAC_CHIRP_CH 0
 
 #define ML_DMAC_TCC0_OVF_TRIG 0x16
 
-static DmacDescriptor base_descriptor __attribute__((aligned(16)));
-static DmacDescriptor wb_descriptor __attribute__((aligned(16)));
+static DmacDescriptor base_descriptor[12] __attribute__((aligned(16)));
+static DmacDescriptor descriptor __attribute__((aligned(16)));
+static volatile DmacDescriptor wb_descriptor[12] __attribute__((aligned(16)));
+
 
 static const uint8_t buffer_tx[20] = {
 	0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A,
@@ -325,35 +331,64 @@ static void DMAC_init(void){
  // channel number of DMA channel written to CHCTRLA reg
  // trigger action set by writing to CHCTRLA.TRIGACT
  // trigger source set by writing to CHCTRLA.TRIGSRC
- DMAC->Channel[ML_DMAC_CHIRP_CH].CHCTRLA.reg &= ~DMAC_CHCTRLA_ENABLE;
- DMAC->Channel[ML_DMAC_CHIRP_CH].CHCTRLA.reg |= DMAC_CHCTRLA_SWRST;
+  DMAC->Channel[ML_DMAC_CHIRP_CH].CHCTRLA.reg &= ~DMAC_CHCTRLA_ENABLE;
+  DMAC->Channel[ML_DMAC_CHIRP_CH].CHCTRLA.reg |= DMAC_CHCTRLA_SWRST;
 
- DMAC->Channel[ML_DMAC_CHIRP_CH].CHCTRLA.reg |= (DMAC_CHCTRLA_BURSTLEN_2BEAT |
+  DMAC->Channel[ML_DMAC_CHIRP_CH].CHCTRLA.reg |= (DMAC_CHCTRLA_BURSTLEN_2BEAT |
                                              DMAC_CHCTRLA_TRIGACT_BURST  |      
                                              DMAC_CHCTRLA_TRIGSRC(ML_DMAC_TCC0_OVF_TRIG));
 
 
  // set channel priority to zero
- DMAC->Channel[ML_DMAC_CHIRP_CH].CHPRILVL.reg |=  DMAC_CHPRILVL_PRILVL_LVL0; 
+  DMAC->Channel[ML_DMAC_CHIRP_CH].CHPRILVL.reg |=  DMAC_CHPRILVL_PRILVL_LVL0; 
 
  // descriptor setup
- base_descriptor.BTCTRL.reg = DMAC_BTCTRL_VALID          | 
+  descriptor.BTCTRL.reg = DMAC_BTCTRL_VALID          | 
                               DMAC_BTCTRL_EVOSEL_DISABLE | 
                               DMAC_BTCTRL_BLOCKACT_NOACT |
                               DMAC_BTCTRL_BEATSIZE_BYTE  |
                               DMAC_BTCTRL_SRCINC         |
                               DMAC_BTCTRL_STEPSIZE_X1;
   
-  base_descriptor.BTCNT.reg = sizeof(buffer_tx);
-  base_descriptor.SRCADDR.reg = (uint32_t)&buffer_tx[0] + sizeof(buffer_tx);
-  base_descriptor.DSTADDR.reg = (uint32_t)&TCC0->CCBUF[ML_TCC0_CH0].reg;
+  descriptor.BTCNT.reg = sizeof(buffer_tx);
+  descriptor.SRCADDR.reg = (uint32_t)&buffer_tx[0] + sizeof(buffer_tx);
+  descriptor.DSTADDR.reg = (uint32_t)&TCC0->CCBUF[0].reg;
+  descriptor.DESCADDR.reg = (uint32_t) &base_descriptor[0];
 
+  memcpy(&base_descriptor[0], &descriptor, sizeof(DmacDescriptor));
+
+}
+
+static void DMAC_enable(void){
   DMAC->CTRL.reg |= DMAC_CTRL_DMAENABLE;
   DMAC->Channel[ML_DMAC_CHIRP_CH].CHCTRLA.reg |= DMAC_CHCTRLA_ENABLE;
 }
 
+bool results_ready = false;
+uint32_t CC_results = 0;
+
+void TCC0_0_Handler(void){
+
+  TCC0->CTRLBSET.reg |= TCC_CTRLBSET_CMD_READSYNC;
+
+  uint32_t cc_intreg_cpy = TCC0->INTFLAG.reg;
+
+  // make a copy of intflag reg
+ //TCC_INTFLAG_Type intflag_cpy = TCC0->CC[0].INTFLAG;
+
+  // clear interrupt flags
+  TCC0->INTFLAG.reg = TCC_INTFLAG_RESETVALUE;
+
+  if(cc_intreg_cpy & TCC_INTFLAG_OVF){
+    results_ready = true;
+    CC_results = TCC0->CC[0].bit.CC;
+  }
+}
+
 
 void setup() {
+
+  //Serial.begin(9600);
 
   GCLK0_init();
   TCC0_init();
@@ -364,9 +399,16 @@ void setup() {
   //TCC0_DT_set(0x0, 0x2);
 
   TCC_enable(TCC0);
+  DMAC_enable();
 
 }
 
 void loop() {
+
+  if(results_ready){
+    //    Serial.println(CC_results);
+        results_ready = false;
+  }
+ // Serial.print("T");
 
 }
