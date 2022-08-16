@@ -5,6 +5,8 @@
 
 #include <Arduino.h>
 
+//#define ML_M4EXPRESS
+
 // Note: macros/data structures used w/o prefixes ML (Mueller Lab) 
 // exist at ${PATH_TO_ARDUINO_CONFIGS}/packages/adafruit/tools/CMSIS-Atmel/1.2.2/CMSIS/Device/ATMEL/samd51
 
@@ -57,19 +59,61 @@ static void GCLK0_init(void){
 
 #define GCLK0_FREQ (ML_MCLK_UNDIV/(1 * ML_HCLK_INITIAL_DIV))             // 60 Mhz
 
-#define ML_M4_TCC0_CH0_PIN 7
-#define ML_PB12_PIN 12
-#define ML_TCC0_CH0_PMUXE 0x6                                            // pin # = 2*peripheral (even)
 #define ML_TCC0_CH0 0x0
-
-#define ML_M4_TCC0_CH1_PIN 4
-#define ML_PB13_PIN 13
-#define ML_TCC0_CH1_PMUXO 0x6                                             // pin # = 2*peripheral + 1 (odd)
 #define ML_TCC0_CH1 0x1
 
-const EPortType TCC0_PORT_GRP = g_APinDescription[ML_M4_TCC0_CH0_PIN].ulPort;
-const uint32_t TCC0_PIN_CH0 = g_APinDescription[ML_M4_TCC0_CH0_PIN].ulPin;
-const uint32_t TCC0_PIN_CH1 = g_APinDescription[ML_M4_TCC0_CH1_PIN].ulPin;
+#ifdef ML_M4EXPRESS
+
+#define ML_TCC0_CH0_PIN 7
+#define ML_M4_TCC0_CH0_PIN 12
+#define ML_TCC0_CH0_PMUX 0x6
+#define ML_TCC0_CH0_PMUX_msk (PORT_PMUX_PMUXE(ML_TCC0_CH0_PMUX))
+
+#define ML_TCC0_CH1_PIN 4
+#define ML_M4_TCC0_CH1_PIN 13
+#define ML_TCC0_CH1_PMUX 0x6
+#define ML_TCC0_CH1_PMUX_msk (PORT_PMUX_PMUXO(ML_TCC0_CH1_PMUX))
+
+#else
+
+#define ML_TCC0_CH0_PIN 45
+#define ML_M4_TCC0_CH0_PIN 10
+#define ML_TCC0_CH0_PMUX 0x5                        // pin # = 2*peripheral (even), 2*peripheral + 1 (odd)
+#define ML_TCC0_CH0_PMUX_msk (PORT_PMUX_PMUXE(ML_TCC0_CH0_PMUX))
+
+#define ML_TCC0_CH1_PIN 44
+#define ML_M4_TCC0_CH1_PIN 11
+#define ML_TCC0_CH1_PMUX 0x5
+#define ML_TCC0_CH1_PMUX_msk (PORT_PMUX_PMUXO(ML_TCC0_CH1_PMUX))
+
+#endif
+
+const EPortType TCC0_PORT_GRP = g_APinDescription[ML_TCC0_CH0_PIN].ulPort;
+const uint32_t TCC0_PIN_CH0 = g_APinDescription[ML_TCC0_CH0_PIN].ulPin;
+const uint32_t TCC0_PIN_CH1 = g_APinDescription[ML_TCC0_CH1_PIN].ulPin;
+
+static void TCC0_PORT_init(void){
+
+    // pin configuration reg
+  PORT->Group[TCC0_PORT_GRP].PINCFG[TCC0_PIN_CH0].reg |=  PORT_PINCFG_PMUXEN;  // peripheral multiplexer enable
+                                                    //PORT_PINCFG_DRVSTR   // enable stronger drive strength
+
+  // shift TCC0_PIN right by one since PMUX arr length is 16, and PINCFG arr len is 32
+  PORT->Group[TCC0_PORT_GRP].PMUX[TCC0_PIN_CH0 >> 1].reg |= ML_TCC0_CH0_PMUX_msk; // peripheral multiplexer selection for even number pin (for odd: PORT_PMUX_PMUXO)
+
+  // port dirset reg
+  PORT->Group[TCC0_PORT_GRP].DIRSET.reg |= PORT_DIRSET_DIRSET(ML_M4_TCC0_CH0_PIN);                 // Set for output, else input
+
+  // pretty much the same as CH0 pin setup
+
+  PORT->Group[TCC0_PORT_GRP].PINCFG[TCC0_PIN_CH1].reg |= PORT_PINCFG_PMUXEN;
+
+  PORT->Group[TCC0_PORT_GRP].PMUX[TCC0_PIN_CH1 >> 1].reg |= ML_TCC0_CH1_PMUX_msk;
+
+  PORT->Group[TCC0_PORT_GRP].DIRSET.reg |= PORT_DIRSET_DIRSET(ML_M4_TCC0_CH1_PIN);   
+
+}
+
 
 static inline void TCC_enable(Tcc *tcc){
   tcc->CTRLA.reg |= TCC_CTRLA_ENABLE;
@@ -110,8 +154,9 @@ void TCC0_init(void){
   // PAUSE event: EVCTRL.EVACT1=0x3, STOP, EVCTRL.EVACT0=0x3, START
   // EVENT ACTIONS**
   TCC0->CTRLA.reg = TCC_CTRLA_PRESCALER_DIV2 |
-                    TCC_CTRLA_PRESCSYNC_PRESC;                            // try TC_CTRLA_PRESYNC_GCLK or TC_CTRLA_PRESYNC_RESYNC
-    //              TCC_CTRLA_RESOLUTION_DITH4 |                           // enable dithering every 16 PWM frames
+                    TCC_CTRLA_PRESCSYNC_PRESC |                          // try TC_CTRLA_PRESYNC_GCLK or TC_CTRLA_PRESYNC_RESYNC
+                    TCC_CTRLA_DMAOS;
+     //               TCC_CTRLA_RESOLUTION_DITH4 |                           // enable dithering every 16 PWM frames
     //              TCC_CTRLA_RUNSTDBY;                                    // run TCC when MP in standby
    
   
@@ -193,33 +238,19 @@ void TCC0_init(void){
   //              TCC_CC_DITH4_CC(1)                                    // CC value (if dithering enabled)
 
   TCC0->CC[ML_TCC0_CH1].reg = TCC_CC_CC(3);
-  
+
   while(TCC0->SYNCBUSY.bit.CC0 | TCC0->SYNCBUSY.bit.CC1);
+
+  TCC0_PORT_init();
 
   //TCC0->DRVCTRL.reg |= TCC_DRVCTRL_INVEN1;                              // inverts ch3 wave, we want complimentary outs
   
   // Channel x CC buffer value regs: CCBUFx (force update w/ CTRLBSET.CMD=0x3)
-  // capture compare buffer reg TCC0->CCBUF.reg, similar to PERBUF (pg 1882), NEEDS to wait for SYNC on read and write*
+  // capture compare buffer reg TCC0->CCBUF.reg, similar to PERBUF (pg 1882), NEEDS to wait for SYNC on read and write*                                                              
+}
 
-  // pin configuration reg
-  PORT->Group[TCC0_PORT_GRP].PINCFG[TCC0_PIN_CH0].reg |=  PORT_PINCFG_PMUXEN;  // peripheral multiplexer enable
-                                                    //PORT_PINCFG_DRVSTR   // enable stronger drive strength
-
-  // shift TCC0_PIN right by one since PMUX arr length is 16, and PINCFG arr len is 32
-  PORT->Group[TCC0_PORT_GRP].PMUX[TCC0_PIN_CH0 >> 1].reg |= PORT_PMUX_PMUXE(ML_TCC0_CH0_PMUXE); // peripheral multiplexer selection for even number pin (for odd: PORT_PMUX_PMUXO)
-
-  // port dirset reg
-  PORT->Group[TCC0_PORT_GRP].DIRSET.reg |= PORT_DIRSET_DIRSET(ML_PB12_PIN);                 // Set for output, else input
-
-  // pretty much the same as CH0 pin setup
-
-  PORT->Group[TCC0_PORT_GRP].PINCFG[TCC0_PIN_CH1].reg |= PORT_PINCFG_PMUXEN;
-
-  PORT->Group[TCC0_PORT_GRP].PMUX[TCC0_PIN_CH1 >> 1].reg |= PORT_PMUX_PMUXO(ML_TCC0_CH1_PMUXO);
-
-  PORT->Group[TCC0_PORT_GRP].DIRSET.reg |= PORT_DIRSET_DIRSET(ML_PB13_PIN);
-
-                                                                   
+static void TCC0_DT_set(uint8_t dth, uint8_t dtl){
+  TCC0->WEXCTRL.reg |= (TCC_WEXCTRL_DTIEN0 | TCC_WEXCTRL_DTIEN1 | TCC_WEXCTRL_DTLS(dtl) | TCC_WEXCTRL_DTHS(dth));
 }
 
 // mode: 4, 5, 6
@@ -261,13 +292,76 @@ static void TCC0_DITH_set(char mode, uint64_t cycles, uint64_t period, uint64_t 
 
 }
 
+#define ML_DMAC_CHIRP_CH 0
+
+#define ML_DMAC_TCC0_OVF_TRIG 0x16
+
+static DmacDescriptor base_descriptor __attribute__((aligned(16)));
+static DmacDescriptor wb_descriptor __attribute__((aligned(16)));
+
+static const uint8_t buffer_tx[20] = {
+	0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A,
+	0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x14,
+};
+
+static void DMAC_init(void){
+
+  DMAC->CTRL.reg &= ~DMAC_CTRL_DMAENABLE;
+  DMAC->CTRL.reg |= DMAC_CTRL_SWRST;
+
+  // SRAM addr of descriptor memory section written to BASEADDR reg
+  DMAC->BASEADDR.reg = (uint32_t) &base_descriptor;
+
+  // SRAM addr of write-back section written to WRBADDR reg
+  DMAC->WRBADDR.reg = (uint32_t) &wb_descriptor;
+
+  // Set priority level x by setting CTRL.LVLENx
+  DMAC->CTRL.reg |= DMAC_CTRL_LVLEN0 | DMAC_CTRL_LVLEN1 | DMAC_CTRL_LVLEN2 | DMAC_CTRL_LVLEN3;
+
+  /*
+       DMA channel intialization
+  */
+
+ // channel number of DMA channel written to CHCTRLA reg
+ // trigger action set by writing to CHCTRLA.TRIGACT
+ // trigger source set by writing to CHCTRLA.TRIGSRC
+ DMAC->Channel[ML_DMAC_CHIRP_CH].CHCTRLA.reg &= ~DMAC_CHCTRLA_ENABLE;
+ DMAC->Channel[ML_DMAC_CHIRP_CH].CHCTRLA.reg |= DMAC_CHCTRLA_SWRST;
+
+ DMAC->Channel[ML_DMAC_CHIRP_CH].CHCTRLA.reg |= (DMAC_CHCTRLA_BURSTLEN_2BEAT |
+                                             DMAC_CHCTRLA_TRIGACT_BURST  |      
+                                             DMAC_CHCTRLA_TRIGSRC(ML_DMAC_TCC0_OVF_TRIG));
+
+
+ // set channel priority to zero
+ DMAC->Channel[ML_DMAC_CHIRP_CH].CHPRILVL.reg |=  DMAC_CHPRILVL_PRILVL_LVL0; 
+
+ // descriptor setup
+ base_descriptor.BTCTRL.reg = DMAC_BTCTRL_VALID          | 
+                              DMAC_BTCTRL_EVOSEL_DISABLE | 
+                              DMAC_BTCTRL_BLOCKACT_NOACT |
+                              DMAC_BTCTRL_BEATSIZE_BYTE  |
+                              DMAC_BTCTRL_SRCINC         |
+                              DMAC_BTCTRL_STEPSIZE_X1;
+  
+  base_descriptor.BTCNT.reg = sizeof(buffer_tx);
+  base_descriptor.SRCADDR.reg = (uint32_t)&buffer_tx[0] + sizeof(buffer_tx);
+  base_descriptor.DSTADDR.reg = (uint32_t)&TCC0->CCBUF[ML_TCC0_CH0].reg;
+
+  DMAC->CTRL.reg |= DMAC_CTRL_DMAENABLE;
+  DMAC->Channel[ML_DMAC_CHIRP_CH].CHCTRLA.reg |= DMAC_CHCTRLA_ENABLE;
+}
+
 
 void setup() {
 
   GCLK0_init();
   TCC0_init();
 
-  TCC0_DITH_set(4, 12, 10, 3);
+  DMAC_init();
+
+  //TCC0_DITH_set(4, 12, 10, 3);
+  //TCC0_DT_set(0x0, 0x2);
 
   TCC_enable(TCC0);
 
