@@ -73,3 +73,6 @@ Moving a Stepper:
 
 	Loop recieves this info and calls the move stepper function which interpretes which stepper to move, 
 	by how many steps and in what direction.	
+
+TESTING:
+	Opcodes 0x06 and 0x07 open and close all servos (respectively)	

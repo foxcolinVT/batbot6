@@ -55,18 +55,33 @@ void loop()
       https://docs.google.com/document/d/1cmILsPNfWTc15lZilK4X1TophI3p4mWjxnR8-Ee94GQ/edit
     */
   
-  if (M4SERIAL.available() > 1) {             //Requires 2 bytes- opcode and data
-    uint8_t opcode = M4SERIAL.read();         //Upper 4 bits of this opcode describe which motor to move (for a max of 14 servos). Lower 4 bits reserved for instructions
-    if((opcode & OPCODE_MASK) == SERVO_OPCODE){
+  if (M4SERIAL.available() > 0) {             //Requires at least 1 byte
+    //Upper 4 bits of this opcode describe which motor to move (for a max of 14 servos). Lower 4 bits reserved for instructions
+    uint8_t opcode = M4SERIAL.peek();         //Normal servo operation requires 2 bytes. Some other instructions require 1. Peeks in case we need to run servo op.
+    
+    if((opcode & OPCODE_MASK) == SERVO_OPCODE && M4SERIAL.available() > 1){ //Only runs if there's another byte waiting for it
+      M4SERIAL.read();                        //Clears the opcode byte from the serial buffer
       uint8_t data = M4SERIAL.read();         //Only retrieve next byte if opcode is valid
       moveServo(opcode, data);
     }
+    
     else if((opcode & OPCODE_MASK) == 0x03){
       //Move Stepper. Legacy opcode if we don't end up using steppers. If we need the stepper code again, find it on github before changes pushed on 6/23/22
     }
     else if((opcode & OPCODE_MASK) == 0x04){
       //Send sensory data to m4
       //Legacy opcode. No sensory data to get as far as I know.
+    }
+    //0x05 reserved for "SERVO_OPCODE"
+    else if((opcode & OPCODE_MASK) == 0x06){
+      for(int i = 0; i < 12; i++){
+        servoList[i].write(SERVO_MAX_TRAVEL);                     //Move servos to max position
+      }
+    }
+    else if((opcode & OPCODE_MASK) == 0x07){
+      for(int i = 0; i < 12; i++){
+        servoList[i].write(SERVO_MIN_TRAVEL);                     //Move servos to min position
+      }
     }
   }
 }
