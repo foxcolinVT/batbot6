@@ -18,16 +18,12 @@ void MCLK_init(void);
         GCLK definitions
 */
 
-#define ML_GCLK_CH 1
-#define ML_GCLK_INITIAL_DIV 1
-#define ML_GCLK_GENCTRL_DIV1 (GCLK_GENCTRL_DIV(ML_GCLK_INITIAL_DIV))
-#define ML_GCLK_GENCTRL_SRC_DPLL (GCLK_GENCTRL_SRC(GCLK_GENCTRL_SRC_DPLL1_Val))
+#define ML_GCLK_CH 7
 
 // Channel enable, GCLK2, WRTLCK - disable future writing to reg
-#define ML_GCLK2_PCHCTRL (GCLK_PCHCTRL_CHEN | GCLK_PCHCTRL_GEN_GCLK0 | GCLK_PCHCTRL_WRTLOCK)
-#define GCLK0_FREQ (ML_MCLK_UNDIV/(1 * ML_HCLK_INITIAL_DIV))             // 60 Mhz
+#define ML_GCLK7_PCHCTRL (GCLK_PCHCTRL_CHEN | GCLK_PCHCTRL_GEN_GCLK7 | GCLK_PCHCTRL_WRTLOCK)
 
-void GCLK0_init(void);
+void GCLK_init(void);
 
 /*
         TCC definitions
@@ -54,11 +50,13 @@ inline void TCC_swrst(Tcc *tcc);
 
 #else
 
+// For D45, TCC0.0: PC12 -> peripheral function F and PMUXE
 #define ML_TCC0_CH0_PIN 45
 #define ML_M4_TCC0_CH0_PIN 10
-#define ML_TCC0_CH0_PMUX 0x5                        // pin # = 2*peripheral (even), 2*peripheral + 1 (odd)
+#define ML_TCC0_CH0_PMUX 0x5                       
 #define ML_TCC0_CH0_PMUX_msk (PORT_PMUX_PMUXE(ML_TCC0_CH0_PMUX))
 
+// For D44, TCC0.1: PC11 -> peripheral function F and PMUXO
 #define ML_TCC0_CH1_PIN 44
 #define ML_M4_TCC0_CH1_PIN 11
 #define ML_TCC0_CH1_PMUX 0x5
@@ -71,15 +69,18 @@ void TCC0_init(void);
 inline void TCC0_DT_set(uint8_t dth, uint8_t dtl);
 void TCC0_DITH_set(char mode, uint64_t cycles, uint64_t period, uint64_t compare);
 
-#define ML_TCC2_CH1 1
+#define ML_TCC1_CH3 3
 
-#define ML_TCC2_CH1_PIN 23
-#define ML_M4_TCC2_CH1_PIN 15
-#define ML_M4_TCC2_CH1_PMUX 0x7
-#define ML_TCC2_CH1_PMUX_msk (PORT_PMUX_PMUXE(ML_M4_TCC2_CH1_PMUX))
+// For D23, TCC1.3: PA15 -> peripheral function G and PMUXO
+#define ML_TCC1_CH3_PIN 23
+#define ML_M4_TCC1_CH3_PIN 15
+#define ML_M4_TCC1_CH3_PMUX 0x6
+#define ML_TCC1_CH3_PMUX_msk (PORT_PMUX_PMUXO(ML_M4_TCC1_CH3_PMUX))
 
-static void TCC2_PORT_init(void);
-void TCC2_init(void);
+#define ML_TCC1_CH3_INITIAL_PER (SINE_ALT_MAX_AMPLITUDE - 1)
+
+static void TCC1_PORT_init(void);
+void TCC1_init(void);
 
 /*
         DMAC definitions
@@ -95,3 +96,6 @@ inline void DMAC_CH_enable(char ch);
 #define ML_DMAC_CHIRP_CH 0
 
 void DMAC_init(void);
+void DMAC_descriptor_init(uint16_t btcnt, uint32_t srcaddr);
+
+uint32_t generate_chirp(void);
