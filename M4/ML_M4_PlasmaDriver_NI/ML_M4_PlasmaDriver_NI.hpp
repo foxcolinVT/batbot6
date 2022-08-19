@@ -20,8 +20,9 @@ void MCLK_init(void);
 
 #define ML_GCLK_CH 7
 
-// Channel enable, GCLK2, WRTLCK - disable future writing to reg
+// Channel enable, GCLK7, WRTLCK - disable future writing to reg
 #define ML_GCLK7_PCHCTRL (GCLK_PCHCTRL_CHEN | GCLK_PCHCTRL_GEN_GCLK7 | GCLK_PCHCTRL_WRTLOCK)
+#define ML_GCLK1_PCHCTRL (GCLK_PCHCTRL_CHEN | GCLK_PCHCTRL_GEN_GCLK1)
 
 void GCLK_init(void);
 
@@ -79,6 +80,11 @@ void TCC0_DITH_set(char mode, uint64_t cycles, uint64_t period, uint64_t compare
 
 #define ML_TCC1_CH3_INITIAL_PER (SINE_ALT_MAX_AMPLITUDE - 1)
 
+#define ML_TCC1_CH0_PIN 8
+#define ML_M4_TCC1_CH0_PIN 18 //PB18, TCC1.0 : function f, PMUXE
+#define ML_M4_TCC1_CH0_PMUX 0x5
+#define ML_TCC1_CH0_PMUX_msk (PORT_PMUX_PMUXE(ML_TCC1_CH0_PMUX))
+
 static void TCC1_PORT_init(void);
 void TCC1_init(void);
 
@@ -91,7 +97,10 @@ void TCC1_init(void);
 
 inline void DMAC_enable(void);
 inline void DMAC_swrst(void);
+
 inline void DMAC_CH_enable(char ch);
+inline void DMAC_CH_disable(char ch);
+inline void DMAC_CH_swrst(char ch);
 
 #define ML_DMAC_CHIRP_CH 0
 
@@ -99,3 +108,26 @@ void DMAC_init(void);
 void DMAC_descriptor_init(uint16_t btcnt, uint32_t srcaddr);
 
 uint32_t generate_chirp(void);
+
+/*
+        CCL definitions
+*/
+
+#define ML_CCL_LUT_BUF_CH 1
+#define ML_CCL_LUT_AND_CH 0
+
+// CCL_WO[0] - PB23: D11, peripheral function N
+
+#define ML_CCL_CH0_PIN 11
+#define ML_M4_CCL_CH0_PIN 23
+#define ML_M4_CCL_CH0_PMUX 0xD
+#define ML_CCL_CH0_PMUX_msk (PORT_PMUX_PMUXO(ML_M4_CCL_CH0_PMUX))
+
+inline void CCL_enable(void);
+inline void CCL_disable(void);
+inline void CCL_swrst(void);
+inline void CCL_CH_enable(char ch);
+inline void CCL_CH_disable(char ch);
+
+static void CCL_PORT_init(void);
+void CCL_init(void);

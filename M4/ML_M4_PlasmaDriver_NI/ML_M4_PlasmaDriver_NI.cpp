@@ -16,6 +16,7 @@ void MCLK_init(void){
 
   // enable AHB clock for DMAC
   MCLK->AHBMASK.reg |= MCLK_AHBMASK_DMAC;
+  MCLK->APBCMASK.reg |= MCLK_APBCMASK_CCL;
 }
 
 void GCLK_init(void){
@@ -39,11 +40,12 @@ void GCLK_init(void){
   //GCLK->PCHCTRL[ADC0_GCLK_ID].reg = ML_GCLK2_PCHCTRL;
 
   // Set DAC in GCLK PCHCTRL
-  //GCLK->PCHCTRL[DAC_GCLK_ID].reg =  ML_GCLK2_PCHCTRL;
+  // GCLK->PCHCTRL[DAC_GCLK_ID].reg =  ML_GCLK2_PCHCTRL;
 
   // PCHCTRL for TCC0/1/2
   GCLK->PCHCTRL[TCC0_GCLK_ID].reg = ML_GCLK7_PCHCTRL;                   // TCC0 and TCC1 ID are the same, so TCC1 is implicitly set
-  //GCLK->PCHCTRL[TCC2_GCLK_ID].reg = ML_GCLK2_PCHCTRL;                     // TCC3 set for same above reason
+  GCLK->PCHCTRL[CCL_GCLK_ID].reg = ML_GCLK7_PCHCTRL;
+  // GCLK->PCHCTRL[TCC2_GCLK_ID].reg = ML_GCLK2_PCHCTRL;                     // TCC3 set for same above reason
 
 }
 
@@ -114,11 +116,11 @@ void TCC0_init(void){
   // EVENT ACTIONS**
   TCC0->CTRLA.reg = TCC_CTRLA_PRESCALER_DIV1 |
                     TCC_CTRLA_PRESCSYNC_PRESC;                         // try TC_CTRLA_PRESYNC_GCLK or TC_CTRLA_PRESYNC_RESYNC
-   //                 TCC_CTRLA_DMAOS;     
+   //               TCC_CTRLA_DMAOS;     
    //               TCC_CTRLA_RESOLUTION_DITH4 |                           // enable dithering every 16 PWM frames
-    //              TCC_CTRLA_RUNSTDBY;                                    // run TCC when MP in standby
+   //               TCC_CTRLA_RUNSTDBY;                                    // run TCC when MP in standby
    
-  //TCC0->CTRLA.reg &= ~TCC_CTRLA_DMAOS;
+  // TCC0->CTRLA.reg &= ~TCC_CTRLA_DMAOS;
   // dead time reg
   /*
   TCC0->WEXCTRL.reg = TCC_WEXCTRL_DTIEN0       |                         // DT insertion gen 0 enable
@@ -149,9 +151,9 @@ void TCC0_init(void){
                     TCC_INTENSET_MC(0)  |                               // Match or capture channel x
   */
 
- //TCC0->INTENSET.reg = TCC_INTENSET_OVF;
- //NVIC_EnableIRQ(TCC0_0_IRQn);
- //NVIC_SetPriority(TCC0_0_IRQn, 0);
+  //TCC0->INTENSET.reg = TCC_INTENSET_OVF;
+  // NVIC_EnableIRQ(TCC0_0_IRQn);
+  // NVIC_SetPriority(TCC0_0_IRQn, 0);
 
   
   // TCCO->INTFLAG.reg                                                  // for reading interrupt status (pg 1866)
@@ -179,7 +181,7 @@ void TCC0_init(void){
   
   
   // period reg
-  TCC0->PER.reg = TCC_PER_PER(10);                                       // period value set
+  TCC0->PER.reg = TCC_PER_PER(100);                                       // period value set
   //              TCC_PER_DITH4_DITHER(1) |                             // dithering cycle number
   //              TCC_PER_DITH4_PER(1)    |                             // period value set (if dithering enabled)
 
@@ -197,17 +199,17 @@ void TCC0_init(void){
   // capture compare reg
   // sync require on read and write
   
-  TCC0->CC[ML_TCC0_CH0].reg = TCC_CC_CC(5);                             // CC value (18 bits)
+  TCC0->CC[ML_TCC0_CH0].reg = TCC_CC_CC(50);                             // CC value (18 bits)
   //              TCC_CC_DITH4_DITHER(1)                                // dithering cycle number
   //              TCC_CC_DITH4_CC(1)                                    // CC value (if dithering enabled)
 
-  TCC0->CC[ML_TCC0_CH1].reg = TCC_CC_CC(5);
+  TCC0->CC[ML_TCC0_CH1].reg = TCC_CC_CC(50);
 
   while(TCC0->SYNCBUSY.bit.CC0 | TCC0->SYNCBUSY.bit.CC1);
 
   TCC0_PORT_init();
 
-  //TCC0->DRVCTRL.reg |= TCC_DRVCTRL_INVEN1;                              // inverts ch3 wave, we want complimentary outs
+  // TCC0->DRVCTRL.reg |= TCC_DRVCTRL_INVEN1;                              // inverts ch3 wave, we want complimentary outs
   
   // Channel x CC buffer value regs: CCBUFx (force update w/ CTRLBSET.CMD=0x3)
   // capture compare buffer reg TCC0->CCBUF.reg, similar to PERBUF (pg 1882), NEEDS to wait for SYNC on read and write*                                                              
@@ -269,7 +271,7 @@ static void TCC1_PORT_init(void){
 }
 
 void TCC1_init(void){
-    // disable TCC
+  // disable TCC
   TCC_disable(TCC1);
   
   // send software reset of TCC CTRLA.SWRST
@@ -290,22 +292,25 @@ void TCC1_init(void){
   // period reg
   // We want a full duty cycle range out of ch3 from values given from DMA
   // Thus, make the TCC period = the maximum amplitude of the wavetable which is 0xff
-  //TCC1->PER.reg = TCC_PER_PER(ML_TCC1_CH3_INITIAL_PER);   
+  // TCC1->PER.reg = TCC_PER_PER(ML_TCC1_CH3_INITIAL_PER);   
   TCC1->PER.reg = TCC_PER_PER(256);   
   while(TCC1->SYNCBUSY.bit.PER);
   
   // start timer @ 50% duty cycle which would mean counting to half the period
-  //TCC1->CC[ML_TCC1_CH3].reg = TCC_CC_CC((unsigned)(ML_TCC1_CH3_INITIAL_PER / 2));
+  // TCC1->CC[ML_TCC1_CH3].reg = TCC_CC_CC((unsigned)(ML_TCC1_CH3_INITIAL_PER / 2));
   TCC1->CC[ML_TCC1_CH3].reg = TCC_CC_CC(128);
-  while(TCC1->SYNCBUSY.bit.CC1);
+  while(TCC1->SYNCBUSY.bit.CC3);
 
- // TCC1->INTENSET.reg = TCC_INTENSET_OVF;
- // NVIC_EnableIRQ(TCC1_0_IRQn);
- //NVIC_SetPriority(TCC1_0_IRQn, 0);
+  TCC1->CC[0].reg = TCC_CC_CC(128);
+  while(TCC1->SYNCBUSY.bit.CC0);
+
+   //TCC1->INTENSET.reg = TCC_INTENSET_OVF;
+   //NVIC_EnableIRQ(TCC1_0_IRQn);
+   //NVIC_SetPriority(TCC1_0_IRQn, 0);
 
   TCC1_PORT_init();
 
-  //TCC0->DRVCTRL.reg |= TCC_DRVCTRL_INVEN1;   
+  // TCC0->DRVCTRL.reg |= TCC_DRVCTRL_INVEN1;   
 }
 
 void TCC1_0_Handler(void){}
@@ -314,21 +319,17 @@ static DmacDescriptor base_descriptor[12] __attribute__((aligned(16)));
 static DmacDescriptor descriptor __attribute__((aligned(16)));
 static volatile DmacDescriptor wb_descriptor[12] __attribute__((aligned(16)));
 
-inline void DMAC_enable(void){
-  DMAC->CTRL.reg |= DMAC_CTRL_DMAENABLE;
-}
+inline void DMAC_enable(void){ DMAC->CTRL.reg |= DMAC_CTRL_DMAENABLE; }
 
-inline void DMAC_swrst(void){
-    DMAC->CTRL.reg |= DMAC_CTRL_SWRST;
-}
+inline void DMAC_swrst(void){ DMAC->CTRL.reg |= DMAC_CTRL_SWRST; }
 
-inline void DMAC_disable(void){
-    DMAC->CTRL.reg &= ~DMAC_CTRL_DMAENABLE;
-}
+inline void DMAC_disable(void){ DMAC->CTRL.reg &= ~DMAC_CTRL_DMAENABLE; }
 
-inline void DMAC_CH_enable(char ch){
-  DMAC->Channel[ch].CHCTRLA.reg |= DMAC_CHCTRLA_ENABLE;
-}
+inline void DMAC_CH_enable(char ch){ DMAC->Channel[ch].CHCTRLA.reg |= DMAC_CHCTRLA_ENABLE; }
+
+inline void DMAC_CH_disable(char ch){ DMAC->Channel[ch].CHCTRLA.reg &= ~DMAC_CHCTRLA_ENABLE; }
+
+inline void DMAC_CH_swrst(char ch){ DMAC->Channel[ch].CHCTRLA.reg |= DMAC_CHCTRLA_SWRST; }
 
 void DMAC_init(void){
 
@@ -354,8 +355,8 @@ void DMAC_init(void){
  // channel number of DMA channel written to CHCTRLA reg
  // trigger action set by writing to CHCTRLA.TRIGACT
  // trigger source set by writing to CHCTRLA.TRIGSRC
-  DMAC->Channel[ML_DMAC_CHIRP_CH].CHCTRLA.reg &= ~DMAC_CHCTRLA_ENABLE;
-  DMAC->Channel[ML_DMAC_CHIRP_CH].CHCTRLA.reg |= DMAC_CHCTRLA_SWRST;
+  DMAC_CH_disable((char)ML_DMAC_CHIRP_CH);
+  DMAC_CH_swrst((char)ML_DMAC_CHIRP_CH);
 
   DMAC->Channel[ML_DMAC_CHIRP_CH].CHCTRLA.reg |= (DMAC_CHCTRLA_BURSTLEN_SINGLE |
                                                   DMAC_CHCTRLA_TRIGACT_BLOCK  |      
@@ -401,6 +402,10 @@ uint32_t CC_results = 0;
 
 void TCC0_0_Handler(void){
 
+
+
+  //Serial.print("Y");
+
   /*uint32_t cc_intreg_cpy = TCC0->INTFLAG.reg;
   //Serial.println("YYY");
 
@@ -415,6 +420,86 @@ void TCC0_0_Handler(void){
   if(cc_intreg_cpy & TCC_INTFLAG_OVF){
     results_ready = true;
   }*/
+}
+
+inline void CCL_enable(void){ CCL->CTRL.reg |= CCL_CTRL_ENABLE; }
+
+inline void CCL_disable(void){ CCL->CTRL.reg &= ~CCL_CTRL_ENABLE; }
+
+inline void CCL_swrst(void){ CCL->CTRL.reg |= CCL_CTRL_SWRST; }
+
+inline void CCL_CH_enable(char ch){ CCL->LUTCTRL[ch].reg |= CCL_LUTCTRL_ENABLE; }
+
+inline void CCL_CH_disable(char ch){ CCL->LUTCTRL[ch].reg &= ~CCL_LUTCTRL_ENABLE; }
+
+static const EPortType CCL_PORT_GRP = g_APinDescription[ML_CCL_CH0_PIN].ulPort;
+static const uint32_t CCL_PIN_CH0 = g_APinDescription[ML_CCL_CH0_PIN].ulPin;
+
+static void CCL_PORT_init(void){
+
+  PORT->Group[CCL_PORT_GRP].PINCFG[CCL_PIN_CH0].reg |= PORT_PINCFG_PMUXEN;
+
+  PORT->Group[CCL_PORT_GRP].PMUX[CCL_PIN_CH0 >> 1].reg |= ML_CCL_CH0_PMUX_msk;
+
+  PORT->Group[CCL_PORT_GRP].DIRSET.reg |= PORT_DIRSET_DIRSET(ML_M4_CCL_CH0_PIN);
+
+}
+/*
+
+    TRUTH TABLE: y = BUF(x) = x
+    in[2] | in[1] | in[0] | out
+    ---------------------------
+       0  |   0   |   0   | T[0] = 0
+       0  |   0   |   1   | T[1] = 0
+       0  |   1   |   0   | T[2] = 0
+       0  |   1   |   1   | T[3] = 0
+       1  |   0   |   0   | T[4] = 1
+       1  |   0   |   1   | T[5] = 1
+       1  |   1   |   0   | T[6] = 1
+       1  |   1   |   1   | T[7] = 1
+*/
+const static char truth_buffer = 0b11110000;
+
+/*
+    TRUTH TABLE: y = AND(x1, x2, X)
+    in[2] | in[1] | in[0] | out
+    ---------------------------
+       0  |   0   |   0   | T[0] = 0
+       0  |   0   |   1   | T[1] = 0
+       0  |   1   |   0   | T[2] = 0
+       0  |   1   |   1   | T[3] = 0
+       1  |   0   |   0   | T[4] = 0
+       1  |   0   |   1   | T[5] = 0
+       1  |   1   |   0   | T[6] = 1
+       1  |   1   |   1   | T[7] = 1
+*/
+const static char truth_and = 0b110000;
+
+void CCL_init(void){
+
+  CCL_disable();
+  CCL_swrst();
+
+  CCL_CH_disable((char)ML_CCL_LUT_BUF_CH);
+  CCL_CH_disable((char)ML_CCL_LUT_AND_CH);
+
+  CCL->LUTCTRL[ML_CCL_LUT_BUF_CH].reg |= CCL_LUTCTRL_TRUTH(truth_buffer)  |
+                                          CCL_LUTCTRL_INSEL0_TCC         |
+                                          CCL_LUTCTRL_INSEL1_MASK         |
+                                          CCL_LUTCTRL_INSEL2_MASK         |
+                                          CCL_LUTCTRL_FILTSEL_SYNCH       |
+                                          CCL_LUTCTRL_EDGESEL;
+                                  
+
+  
+  CCL->LUTCTRL[ML_CCL_LUT_AND_CH].reg |= CCL_LUTCTRL_TRUTH(truth_and)     |
+                                 CCL_LUTCTRL_INSEL0_TCC                   |
+                                 CCL_LUTCTRL_INSEL1_LINK                  |
+                                 CCL_LUTCTRL_INSEL2_MASK;
+                                 CCL_LUTCTRL_FILTSEL_SYNCH       |
+                                 CCL_LUTCTRL_EDGESEL;
+  CCL_PORT_init();
+  
 }
 
 const int sample_freq = 1.05E6;
@@ -459,6 +544,8 @@ void setup() {
   TCC0_init();
   TCC1_init();
 
+  CCL_init();
+
   DMAC_init();
 
   uint32_t chirp_srcaddr = generate_chirp();
@@ -477,7 +564,13 @@ void setup() {
 
   TCC_enable(TCC0);
   TCC_enable(TCC1);
+
+  CCL_CH_enable((char)ML_CCL_LUT_AND_CH);
+  CCL_CH_enable((char)ML_CCL_LUT_BUF_CH);
+
   DMAC_CH_enable(ML_DMAC_CHIRP_CH);
+  
+  CCL_enable();
 
 }
 
