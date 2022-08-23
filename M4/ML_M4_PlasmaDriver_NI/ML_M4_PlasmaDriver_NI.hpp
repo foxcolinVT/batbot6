@@ -36,6 +36,10 @@ inline void TCC_swrst(Tcc *tcc);
 
 static inline void TCC_sync(Tcc *tcc);
 
+static void TCC_CH_PORT_init(const EPortType port_grp, const uint32_t pin, const uint8_t pmux_msk, const uint8_t m4_pin);
+
+static inline void TCC_CH_CC_set(volatile TCC_CC_Type *CCx, uint8_t count_val);
+
 #define ML_TCC0_CH0 0x0
 #define ML_TCC0_CH1 0x1
 
@@ -67,10 +71,11 @@ static inline void TCC_sync(Tcc *tcc);
 
 #endif
 
+
 static void TCC0_PORT_init(void);
 void TCC0_init(void);
 inline void TCC0_DT_set(uint8_t dth, uint8_t dtl);
-void TCC0_DITH_set(char mode, uint64_t cycles, uint64_t period, uint64_t compare);
+void TCC0_DITH_set(uint8_t mode, uint64_t cycles, uint64_t period, uint64_t compare);
 
 #define ML_TCC1_CH3 3
 
@@ -107,7 +112,8 @@ inline void DMAC_CH_swrst(char ch);
 #define ML_DMAC_CHIRP_CH 0
 
 void DMAC_init(void);
-void DMAC_descriptor_init(uint16_t btcnt, uint32_t srcaddr);
+
+void DMAC_chirp_descriptor_init(const uint16_t btsettings, const uint16_t btcnt, const uint32_t srcaddr, const uint32_t dstaddr, const uint8_t bdindex);
 
 uint32_t generate_chirp(void);
 
@@ -133,4 +139,28 @@ inline void CCL_CH_disable(uint8_t ch);
 
 static void CCL_PORT_init(void);
 void CCL_init(void);
+
+// PA05, A1: peripheral function B, PMUXO
+#define ML_ADC0_AIN5_PIN A1
+#define ML_M4_ADC0_AIN5_PIN 5
+#define ML_M4_ADC0_AIN5_PMUX 0x1
+#define ML_ADC0_AIN5_PMUX_msk (PORT_PMUX_PMUXO(ML_M4_ADC0_AIN5_PMUX))
+#define ML_ADC0_AIN 5
+
+// PB04, A7: peripheral function B, PMUXE
+#define ML_ADC1_AIN6_PIN A7
+#define ML_M4_ADC1_AIN6_PIN 4
+#define ML_M4_ADC1_AIN6_PMUX 0x1
+#define ML_ADC1_AIN6_PMUX_msk (PORT_PMUX_PMUXE(ML_M4_ADC1_AIN6_PMUX))
+#define ML_ADC1_AIN 6
+
+inline void ADC_enable(Adc *ADCx);
+inline void ADC_disable(Adc *ADCx);
+inline void ADC_swrst(Adc *ADCX);
+
+static inline void ADC_sync(Adc *ADCx);
+
+static void ADC_AIN_PORT_init(const EPortType port_grp, const uint32_t pin, const uint8_t pmux_msk);
+
+void ADC_init(Adc *ADCx, const uint8_t muxneg_ain, const uint8_t muxpos_ain);
 
