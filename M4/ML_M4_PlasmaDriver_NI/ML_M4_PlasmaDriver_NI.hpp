@@ -34,6 +34,8 @@ inline void TCC_enable(Tcc *tcc);
 inline void TCC_disable(Tcc *tcc);
 inline void TCC_swrst(Tcc *tcc);
 
+static inline void TCC_sync(Tcc *tcc);
+
 #define ML_TCC0_CH0 0x0
 #define ML_TCC0_CH1 0x1
 
@@ -126,8 +128,9 @@ uint32_t generate_chirp(void);
 inline void CCL_enable(void);
 inline void CCL_disable(void);
 inline void CCL_swrst(void);
-inline void CCL_CH_enable(char ch);
-inline void CCL_CH_disable(char ch);
+inline void CCL_CH_enable(uint8_t ch);
+inline void CCL_CH_disable(uint8_t ch);
 
 static void CCL_PORT_init(void);
 void CCL_init(void);
+

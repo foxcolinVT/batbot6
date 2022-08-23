@@ -43,8 +43,12 @@ void GCLK_init(void){
   // GCLK->PCHCTRL[DAC_GCLK_ID].reg =  ML_GCLK2_PCHCTRL;
 
   // PCHCTRL for TCC0/1/2
-  GCLK->PCHCTRL[TCC0_GCLK_ID].reg = ML_GCLK7_PCHCTRL;                   // TCC0 and TCC1 ID are the same, so TCC1 is implicitly set
+  GCLK->PCHCTRL[TCC0_GCLK_ID].reg = ML_GCLK7_PCHCTRL;                  // TCC0 and TCC1 ID are the same, so TCC1 is implicitly set
+  
   GCLK->PCHCTRL[CCL_GCLK_ID].reg = ML_GCLK7_PCHCTRL;
+
+  GCLK->PCHCTRL[ADC0_GCLK_ID].reg = ML_GCLK7_PCHCTRL;
+  GCLK->PCHCTRL[ADC1_GCLK_ID].reg = ML_GCLK7_PCHCTRL;
   // GCLK->PCHCTRL[TCC2_GCLK_ID].reg = ML_GCLK2_PCHCTRL;                     // TCC3 set for same above reason
 
 }
@@ -56,7 +60,7 @@ static const uint32_t TCC0_PIN_CH1 = g_APinDescription[ML_TCC0_CH1_PIN].ulPin;
 static void TCC0_PORT_init(void){
 
     // pin configuration reg
-  PORT->Group[TCC0_PORT_GRP].PINCFG[TCC0_PIN_CH0].reg |=  PORT_PINCFG_PMUXEN;  // peripheral multiplexer enable
+  PORT->Group[TCC0_PORT_GRP].PINCFG[TCC0_PIN_CH0].reg =  PORT_PINCFG_PMUXEN;  // peripheral multiplexer enable
                                                     //PORT_PINCFG_DRVSTR   // enable stronger drive strength
 
   // shift TCC0_PIN right by one since PMUX arr length is 16, and PINCFG arr len is 32
@@ -67,7 +71,7 @@ static void TCC0_PORT_init(void){
 
   // pretty much the same as CH0 pin setup
 
-  PORT->Group[TCC0_PORT_GRP].PINCFG[TCC0_PIN_CH1].reg |= PORT_PINCFG_PMUXEN;
+  PORT->Group[TCC0_PORT_GRP].PINCFG[TCC0_PIN_CH1].reg = PORT_PINCFG_PMUXEN;
 
   PORT->Group[TCC0_PORT_GRP].PMUX[TCC0_PIN_CH1 >> 1].reg |= ML_TCC0_CH1_PMUX_msk;
 
@@ -76,28 +80,23 @@ static void TCC0_PORT_init(void){
 }
 
 
-inline void TCC_enable(Tcc *tcc){
-  tcc->CTRLA.reg |= TCC_CTRLA_ENABLE;
-  while(tcc->SYNCBUSY.bit.ENABLE);
-}
+inline void TCC_enable(Tcc *tcc){ tcc->CTRLA.reg |= TCC_CTRLA_ENABLE; }
 
-inline void TCC_disable(Tcc *tcc){
-  tcc->CTRLA.reg &= ~TCC_CTRLA_ENABLE;
-  while(tcc->SYNCBUSY.bit.ENABLE);
-}
+inline void TCC_disable(Tcc *tcc){ tcc->CTRLA.reg &= ~TCC_CTRLA_ENABLE; }
 
-inline void TCC_swrst(Tcc *tcc){
-  tcc->CTRLA.reg |= TCC_CTRLA_SWRST;
-  while(tcc->SYNCBUSY.bit.SWRST);
-}
+inline void TCC_swrst(Tcc *tcc){ tcc->CTRLA.reg |= TCC_CTRLA_SWRST; }
+
+static inline void TCC_sync(Tcc *tcc){ while(tcc->SYNCBUSY.reg); }
 
 void TCC0_init(void){
       
   // disable TCC
   TCC_disable(TCC0);
+  TCC_sync(TCC0);
   
   // send software reset of TCC CTRLA.SWRST
   TCC_swrst(TCC0);
+  TCC_sync(TCC0);
 
   /*
   * Syncronization:
@@ -177,7 +176,7 @@ void TCC0_init(void){
   TCC0->WAVE.reg = TCC_WAVE_WAVEGEN_NFRQ |                             // normal frequency operation
                    TCC_WAVE_RAMP_RAMP2   |                              // ramp 2 operation
                    TCC_WAVE_POL0 | TCC_WAVE_POL1;                                      // channel x polarity set
-  while(TCC0->SYNCBUSY.bit.WAVE);
+  TCC_sync(TCC0);
   
   
   // period reg
@@ -185,7 +184,7 @@ void TCC0_init(void){
   //              TCC_PER_DITH4_DITHER(1) |                             // dithering cycle number
   //              TCC_PER_DITH4_PER(1)    |                             // period value set (if dithering enabled)
 
-  while(TCC0->SYNCBUSY.bit.PER);
+  TCC_sync(TCC0);
   
   // period buffer reg
   // sync required on read and write
@@ -205,10 +204,10 @@ void TCC0_init(void){
 
   TCC0->CC[ML_TCC0_CH1].reg = TCC_CC_CC(50);
 
-  while(TCC0->SYNCBUSY.bit.CC0 | TCC0->SYNCBUSY.bit.CC1);
+  TCC_sync(TCC0);
 
   TCC0_PORT_init();
-
+  
   // TCC0->DRVCTRL.reg |= TCC_DRVCTRL_INVEN1;                              // inverts ch3 wave, we want complimentary outs
   
   // Channel x CC buffer value regs: CCBUFx (force update w/ CTRLBSET.CMD=0x3)
@@ -250,11 +249,11 @@ void TCC0_DITH_set(char mode, uint64_t cycles, uint64_t period, uint64_t compare
   TCC0->CTRLA.reg |= CTRLA_res_msk;
 
   TCC0->PER.reg = PER_DITH_msk;
-  while(TCC0->SYNCBUSY.bit.PER);
+  TCC_sync(TCC0);
 
   TCC0->CC[ML_TCC0_CH0].reg = CC_DITH_msk;
   TCC0->CC[ML_TCC0_CH1].reg = CC_DITH_msk;
-  while(TCC0->SYNCBUSY.bit.CC0 | TCC0->SYNCBUSY.bit.CC1);
+  TCC_sync(TCC0);
 }
 
 static const EPortType TCC1_PORT_GRP = g_APinDescription[ML_TCC1_CH3_PIN].ulPort;
@@ -273,10 +272,11 @@ static void TCC1_PORT_init(void){
 void TCC1_init(void){
   // disable TCC
   TCC_disable(TCC1);
+  TCC_sync(TCC1);
   
   // send software reset of TCC CTRLA.SWRST
   TCC_swrst(TCC1);
-
+  TCC_sync(TCC1);
   
   TCC1->CTRLA.reg = TCC_CTRLA_PRESCALER_DIV1 |
                     TCC_CTRLA_PRESCSYNC_PRESC;                         
@@ -286,7 +286,7 @@ void TCC1_init(void){
                                     
 
   TCC1->WAVE.reg = TCC_WAVE_WAVEGEN_NPWM;                      
-  while(TCC1->SYNCBUSY.bit.WAVE);
+  TCC_sync(TCC1);
   
   
   // period reg
@@ -294,21 +294,20 @@ void TCC1_init(void){
   // Thus, make the TCC period = the maximum amplitude of the wavetable which is 0xff
   // TCC1->PER.reg = TCC_PER_PER(ML_TCC1_CH3_INITIAL_PER);   
   TCC1->PER.reg = TCC_PER_PER(256);   
-  while(TCC1->SYNCBUSY.bit.PER);
+  TCC_sync(TCC1);
   
   // start timer @ 50% duty cycle which would mean counting to half the period
   // TCC1->CC[ML_TCC1_CH3].reg = TCC_CC_CC((unsigned)(ML_TCC1_CH3_INITIAL_PER / 2));
   TCC1->CC[ML_TCC1_CH3].reg = TCC_CC_CC(128);
-  while(TCC1->SYNCBUSY.bit.CC3);
 
   TCC1->CC[0].reg = TCC_CC_CC(128);
-  while(TCC1->SYNCBUSY.bit.CC0);
+  TCC_sync(TCC1);
+
+  TCC1_PORT_init();
 
    //TCC1->INTENSET.reg = TCC_INTENSET_OVF;
    //NVIC_EnableIRQ(TCC1_0_IRQn);
    //NVIC_SetPriority(TCC1_0_IRQn, 0);
-
-  TCC1_PORT_init();
 
   // TCC0->DRVCTRL.reg |= TCC_DRVCTRL_INVEN1;   
 }
@@ -428,9 +427,9 @@ inline void CCL_disable(void){ CCL->CTRL.reg &= ~CCL_CTRL_ENABLE; }
 
 inline void CCL_swrst(void){ CCL->CTRL.reg |= CCL_CTRL_SWRST; }
 
-inline void CCL_CH_enable(char ch){ CCL->LUTCTRL[ch].reg |= CCL_LUTCTRL_ENABLE; }
+inline void CCL_CH_enable(uint8_t ch){ CCL->LUTCTRL[ch].reg |= CCL_LUTCTRL_ENABLE; }
 
-inline void CCL_CH_disable(char ch){ CCL->LUTCTRL[ch].reg &= ~CCL_LUTCTRL_ENABLE; }
+inline void CCL_CH_disable(uint8_t ch){ CCL->LUTCTRL[ch].reg &= ~CCL_LUTCTRL_ENABLE; }
 
 static const EPortType CCL_PORT_GRP = g_APinDescription[ML_CCL_CH0_PIN].ulPort;
 static const uint32_t CCL_PIN_CH0 = g_APinDescription[ML_CCL_CH0_PIN].ulPin;
@@ -458,7 +457,7 @@ static void CCL_PORT_init(void){
        1  |   1   |   0   | T[6] = 1
        1  |   1   |   1   | T[7] = 1
 */
-const static char truth_buffer = 0b11110000;
+const static uint8_t truth_buffer = 0b11110000;
 
 /*
     TRUTH TABLE: y = AND(x1, x2, X)
@@ -473,15 +472,15 @@ const static char truth_buffer = 0b11110000;
        1  |   1   |   0   | T[6] = 1
        1  |   1   |   1   | T[7] = 1
 */
-const static char truth_and = 0b110000;
+const static uint8_t truth_and = 0b110000;
 
 void CCL_init(void){
 
   CCL_disable();
   CCL_swrst();
 
-  CCL_CH_disable((char)ML_CCL_LUT_BUF_CH);
-  CCL_CH_disable((char)ML_CCL_LUT_AND_CH);
+  CCL_CH_disable((uint8_t)ML_CCL_LUT_BUF_CH);
+  CCL_CH_disable((uint8_t)ML_CCL_LUT_AND_CH);
 
   CCL->LUTCTRL[ML_CCL_LUT_BUF_CH].reg |= CCL_LUTCTRL_TRUTH(truth_buffer)  |
                                           CCL_LUTCTRL_INSEL0_TCC         |
@@ -489,17 +488,60 @@ void CCL_init(void){
                                           CCL_LUTCTRL_INSEL2_MASK         |
                                           CCL_LUTCTRL_FILTSEL_SYNCH       |
                                           CCL_LUTCTRL_EDGESEL;
+
+  //CCL->LUTCTRL[ML_CCL_LUT_BUF_CH].reg &= ~CCL_LUTCTRL_LUTEI | ~CCL_LUTCTRL_LUTEO;
                                   
 
   
   CCL->LUTCTRL[ML_CCL_LUT_AND_CH].reg |= CCL_LUTCTRL_TRUTH(truth_and)     |
                                  CCL_LUTCTRL_INSEL0_TCC                   |
                                  CCL_LUTCTRL_INSEL1_LINK                  |
-                                 CCL_LUTCTRL_INSEL2_MASK;
-                                 CCL_LUTCTRL_FILTSEL_SYNCH       |
+                                 CCL_LUTCTRL_INSEL2_MASK                  |
+                                 CCL_LUTCTRL_FILTSEL_SYNCH                |
                                  CCL_LUTCTRL_EDGESEL;
+  
+  //CCL->LUTCTRL[ML_CCL_LUT_AND_CH].reg &= ~CCL_LUTCTRL_LUTEI | ~CCL_LUTCTRL_LUTEO;
+
+  CCL_CH_enable((uint8_t)ML_CCL_LUT_AND_CH);
+  CCL_CH_enable((uint8_t)ML_CCL_LUT_BUF_CH);
+
   CCL_PORT_init();
   
+}
+
+inline void ADC_enable(Adc *ADCx){ ADCx->CTRLA.reg |= ADC_CTRLA_ENABLE; }
+
+inline void ADC_disable(Adc *ADCx){ ADCx->CTRLA.reg &= ~ADC_CTRLA_ENABLE; }
+
+inline void ADC_swrst(Adc *ADCx){ ADCx->CTRLA.reg |= ADC_CTRLA_SWRST; }
+
+inline void ADC_sync(Adc *ADCx) { while(ADCx->SYNCBUSY.reg); }
+
+void ADC_init(Adc *ADCx){
+
+  // Write protected registers: CTRLA (except ENABLE and SWRT bits), EVCTRL, CALIB
+
+  ADC_disable(ADCx);
+  ADC_sync(ADCx);
+
+  ADC_swrst(ADCx);
+  ADC_sync(ADCx);
+
+  // f_adc = f_gclk7/4
+  ADCx->CTRLA.reg = ADC_CTRLA_PRESCALER_DIV4;
+  ADC_sync(ADCx);
+
+  ADCx->CTRLB.reg = ADC_CTRLB_RESSEL_12BIT |        // 12-bit resolution
+                    ADC_CTRLB_FREERUN;              // start new conversion when previous completes
+  ADC_sync(ADCx);
+
+  
+
+
+
+
+
+
 }
 
 const int sample_freq = 1.05E6;
@@ -521,12 +563,16 @@ uint32_t generate_chirp(void){
 
   for(int i = num_samples - 1; i >= 0; --i){
 
+    // time step
     double t = t1 * ((double)i / num_samples);
 
+    // time domain model for a bat chirp
     double chirp = cos(phi + 2*PI * (f0 * t + k/2 * t * t));
 
+    // Hanning window - remove harmonics from frequency distribution, leave fundemental frequencies
     double window = 0.5 * (1 - cos(2*PI * i/(num_samples - 1)));
 
+    // fill DMA buffer 
     chirp_buffer[i] = (uint16_t)((256/2) * (1 + chirp * window));
   }
   return (uint32_t)&chirp_buffer[0] + num_samples * sizeof(uint16_t);
@@ -534,9 +580,6 @@ uint32_t generate_chirp(void){
 
 
 void setup() {
-
-  Serial.begin(115200);
-  while(!Serial);
 
   MCLK_init();
   GCLK_init();
@@ -560,17 +603,17 @@ void setup() {
   }*/
 
   //TCC0_DITH_set(4, 12, 10, 3);
-  //TCC0_DT_set(0x0, 0x2);
+  //TCC0_DT_set(0x0, 0x2)
 
   TCC_enable(TCC0);
   TCC_enable(TCC1);
 
-  CCL_CH_enable((char)ML_CCL_LUT_AND_CH);
-  CCL_CH_enable((char)ML_CCL_LUT_BUF_CH);
-
   DMAC_CH_enable(ML_DMAC_CHIRP_CH);
   
-  CCL_enable();
+  //CCL_enable();
+
+  Serial.begin(115200);
+  while(!Serial);
 
 }
 
