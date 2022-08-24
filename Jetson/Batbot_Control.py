@@ -21,9 +21,7 @@ PLOT_INTERVAL = 10
 
 # COM port of the M4; leave None for cross-platform auto-detection
 # PORT = "/dev/ttyTHS1"  #hardware pins 8 and 10
-PORT = None
-
-
+#PORT = None
 
 class BatBot:
     """
@@ -37,37 +35,53 @@ class BatBot:
 
     """
     
-    def __init__(self, port=None):
+    def __init__(self):
         """
         Connect to a device
 
         :param port: optional, COM port of M4
+
+        probably add another serial connection
         """
+
+        # Vendor and product ID of SAMD51 USB Host
+        vid = 0x239a
+        pid = 0x8031
+
+        #Vendor and product ID of Teensy
+        vid_teensy  = 0x16C0
+        pid_teensy = 0x0483
+
         # Try to deduce the serial port
-        if not port:
-            port = self.guess_port()
+        #if not port:
+        port1 = self.guess_port(pid, vid)
+
+        port2 = self.guess_port(pid,vid)        #TODO wrong pid/vid for teensy
 
         # Connect to the device
-        self.ser = serial.Serial(port)
+        self.ser1 = serial.Serial(port1)
+        self.ser2 = serial.Serial(port2)
 
         # Attempt to reset the device
         self.reset()
 
-        print(f'Connected to M4 on {port}')
+        print(f'Connected to M4 on {port1}')
+        print(f'Connected to Teensy on {port2}')
+
 
     @staticmethod
-    def guess_port():
+    def guess_port(pid,vid):
         """
-        Discover any locally connected M4s
+        Discover any locally connected boards
 
-        :return: COM port name of discovered M4
+        :return: COM port name of discovered boards
         """
 
         #print ("Attempting to discover port of M4")
         
         # Vendor and product ID of SAMD51 USB Host
-        VID = 0x239a
-        PID = 0x8031
+        VID = vid #0x239a
+        PID = pid #0x8031
 
         # Try to detect any M4s by USB IDs
         available_ports = serial.tools.list_ports.comports()
@@ -76,86 +90,49 @@ class BatBot:
 
         # Yell at the user if no M4 was found
         if not any(possible_ports):
-            raise Exception('M4 not found: verify that it is properly connected')
+            raise Exception('Board not found: verify that it is properly connected')
 
         return possible_ports[0]
-
 
     def reset(self):
         """
         Trigger a hardware reset using the serial's DTR; highly
         dependent on hardware configuration
+
+        MODIFIED to Reset both M4 and Teensy serials. 
         """
-        self.ser.setDTR(False)
+        self.ser1.setDTR(False)
+        self.ser2.setDTR(False)
         time.sleep(1)
-        self.ser.flushInput()
-        self.ser.setDTR(True)
+        self.ser1.flushInput()
+        self.ser2.flushInput()
+        self.ser1.setDTR(True)
+        self.ser2.setDTR(True)
 
 
-    def write(self, packet):
-        self.ser.write(packet)
+    def writeM4(self, packet):
+        self.ser1.write(packet) 
 
+    #TODO write method for Teensies
 
+    #as of now, the only read needed is for m4
     def read(self, length):
-        return self.ser.read(length)
+        return self.ser1.read(length)
 
 
     def _start_run(self):
-        self.write([0x10])
-
-
-    def set_motion_profile(self,moveservo,movemotor,movevalves,servocode):
-        """
-        Define and send a motion profile to the M4 for the TVCU to use for valves 
-        BYTE 1: Valve motion profile (which to turn on and off)
-        BYTE 2: PWM profile (duty cycle to use)
-        """
-        if movevalves == 1:
-            TVCU_OPCODE = [0x01] #TODO: This seem hard-coded to specific motion profiles. Is this correct?? I thought these values
-            #based on the documentation, dictated certain valve movements
-            valve_motion_profile = [0xFF]
-            valve_pwm_profile = [0xFF]
-            self.write(TVCU_OPCODE)
-            self.write(valve_motion_profile)
-            self.write(valve_pwm_profile)
-
-        """
-        Define and send a motion profile for the TMCU to use for servos and motors
-        BYTE 1: Servo
-        BYTE 2: Stepper (R)
-        BYTE 3: Stepper (L)
-        """
-        if moveservo == 1:
-            print("TRANSMITTIG TMCU SERVO CODE")
-            TMCU_SERVO_OPCODE = [0x02]
-            print("1")
-            servo_motion_profile = servocode
-            print("2")
-            self.write(TMCU_SERVO_OPCODE)
-            print("3")
-            self.write(servo_motion_profile)
-            print("TRANSMITTED")
-
-
-        if movemotor == 1:
-            TMCU_MOTOR_OPCODE =[0x03]
-            r_stepper_profile = [0xFF]
-            l_stepper_profile = [0xFF]
-            self.write(TMCU_MOTOR_OPCODE)      
-            self.write(r_stepper_profile)
-            self.write(l_stepper_profile)
-
+        self.writeM4([0x10])
 
     def _wait_for_run_to_complete(self):
         while True:
-            self.write([0x20])
+            self.writeM4([0x20])
 
             if self.read(1) == b'\x01':
                 return
 
 
     def _get_data(self, ch):
-        self.write([0x30 | ch])
+        self.writeM4([0x30 | ch])
         
         num_pages = self.read(1)[0]
         raw_data = self.read(num_pages * 8192)  # This contains the amount of data to be collected per page
@@ -184,113 +161,6 @@ class BatBot:
         right_ch = self._get_data(ch=1)
 
         return (left_ch, right_ch)
-
-#---------------------------- More Methodization in order to increase ability to run unit testing --------------------------------
-    def moveEar(self, degrees, which): #degrees is self-explanatory, but "which" used A and B
-        #Example Code
-            # self.set_motion_profile(1,0,0,[0xF0]) -- Looks like it was meant to initialize both the left and right ears
-            # the opcode works as follows: 
-            #   The first '1' tells the program that we are expecting a servo code. Treated like a boolean
-            #   The next number, '0', is treated like a boolean, no motor code expected
-            #   The third number dictates if the valves are moved or not. Seems to be a boolean
-            #   set_motion_profile(moveservo,movemotor,movevalves,servocode) #moves servo 1 to the proper positon
-        
-        # First, convert int to appropriate binary value
-	
-        MAX_BINARY = int(0b111111)
-        DEGREES_TOTAL = int(180)
-
-        if degrees > DEGREES_TOTAL:
-            print("invalid number")
-            return -1
-
-        servoBinary = 0
-        
-        servoPositionBinary = round((int(degrees)/DEGREES_TOTAL) * MAX_BINARY)
-        print ("Final binary value for designated input: " + str(bin(servoPositionBinary)))
-        # Determine where this code needs to go
-        # servoBinary = bin(0b0)
-        if which=="a" or which=='a' or which=='A' or which=="A":
-            print("Servo A")
-            servoBinary = (1 << 7)
-        elif which == "b" or which=='b' or which=='B' or which=="B":
-            print("Servo B")
-            servoBinary = (1 << 6)
-        # Add servoPositionBinary to the servoBinary command
-        servoBinary += servoPositionBinary
-        print ("Final code to be sent is: " + str(bin(servoBinary)))
-        self.set_motion_profile(1,0,0, bin(servoBinary).encode())
-        return servoBinary
-
-#---------------------- Move Actuator (Stepper Motor Corde) -------------------------------
-    def moveActuator(self, which, inputPulse, direction): #"which" can be A or B, inputPulse is 0 to 127, "direction" can be a 0 or a 1
-
-        # M4 -> 0x03 -> TMCU: Followed by 2 Bytes with instructions for the stepper motors
-        # First bit of each byte is direction
-        # Next 7 bits of each byte corresponds to an integer (number of pulses)
-        # First byte is left motor
-        # Second byte is right motor.
-        # A pulse can range in value for 0 bits to 7 bits, resulting in input 
-        # values from 0 to 127
-
-        # 0-0000000      0-0000000      //two bite instance to send. First bit is direction, next seven are steps
-        # left servo    right servo
-
-        outputTwoBytes = 0
-
-        if (inputPulse >= 0) and (inputPulse <= 127):
-            #--------------- Choosing which stepper motor to drive for the stepper motors -----------------
-            if which == 'A': # Left motor
-                # Code must be send in first byte
-                print("Moving Right Motor")
-                #TODO make the direction code work
-                direction = bin(direction) << 16
-                outputTwoBytes += (bin(inputPulse) << 8) + direction
-
-            elif which == 'B': # Right motor
-                # Code must be send in second byte
-                print("Moving Left Motor")
-                direction = bin(direction) << 8
-                outputTwoBytes +=  (bin(inputPulse)) + direction
-
-            self.set_motion_profile(0,1,0, outputTwoBytes.encode())
-        
-#---------------------- Move Valve--- -------------------------------
-    def moveValve(self, inputString): #"inputString" is any string of characters for the actuators
-        whichVale = bin(0)
-        #----------------------------- For Loop for Going though every valve ------------------------
-        for element in range(0, len(inputString)):
-            print(inputString[element])
-            which = inputString[element]
-            if which == 'A':
-                print("Moving A")
-                whichVale = 0b00000001
-            elif which == 'B':
-                print("Moving B")
-                whichVale = 0b00000010
-            elif which == 'C':
-                print("Moving C")
-                whichVale = 0b00000100
-            elif which == 'D':
-                print("Moving D")
-                whichVale = 0b00001000
-            elif which == 'E':
-                print("Moving E")
-                whichVale = 0b00010000
-            elif which == 'F':
-                print("Moving F")
-                whichVale = 0b00100000
-            elif which == 'G':
-                print("Moving G")
-                whichVale = 0b01000000
-            elif which == 'H':
-                print("Moving H")
-                whichVale = 0b10000000
-        #--------------------------------------------------------------------
-        self.set_motion_profile(0,0,1, whichVale.encode())
-        return -1
-
-
 #------------------------------------------- Main Loop Below -----------------------------------------------
 
 if __name__ == '__main__':
@@ -393,3 +263,4 @@ if __name__ == '__main__':
 
     elapsed = datetime.now() - trial_start
     print(f'{num_runs} runs took {elapsed}')
+

@@ -43,10 +43,11 @@ void loop() {
   uint8_t data = 0;
   uint8_t opcode = 0x05;
   for(; data<180; data = data + 1){
-     for(int i = 0; i < 15; i++){
+     for(int i = 0; i < 12; i++){
        serial.write(opcode + i*16);
+       delay(5);
        serial.write(data);
-       delay(10);
+       delay(5);
        
        Serial.println(opcode);
        Serial.println(data);
