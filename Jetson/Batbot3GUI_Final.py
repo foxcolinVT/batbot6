@@ -194,7 +194,7 @@ class Window(QtWidgets.QWidget):
         self.uploadBtn.clicked.connect(self.waveformUpload)
 
         # blank input for number of echoes
-        self.iterationInput = QtWidgets.QLineEdit('Infinity')
+        self.iterationInput = QtWidgets.QLineEdit('Infinity')    # Displays "Infinity" in text box by default
         self.iterationInput.setSizePolicy(SizePolicy.MIN.value, SizePolicy.MIN.value)
 
         # LABELS
@@ -864,6 +864,8 @@ class Window(QtWidgets.QWidget):
         except ValueError:
             self.j = 'inf'
 
+        requests.post("http://127.0.0.1:8080", data=self.iterationInput.text())
+
         # Main loop while data acquisition is in progress
         while self.startBtn.isChecked():
             if self.j != 'inf':
@@ -883,7 +885,7 @@ class Window(QtWidgets.QWidget):
             # print("Amplitude: {}".format(time.time() - tAmp))
             if self.deformBtn.isChecked():
                 self.deformBtn.setStyleSheet("background-color: red")
-                requests.post("http://127.0.0.1:8080")                # Send POST request to start pinna deformation
+                requests.post("http://127.0.0.1:8080", data="deform")                # Send POST request to start pinna deformation
             if self.sgBtn.isChecked():
                 # tSg = time.time()
                 self.build_sg(self.leftPlot, self.rightPlot, lamp, ramp)

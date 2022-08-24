@@ -7,10 +7,12 @@ Sets up a simple Flask web server to control and communicate with the batbot rem
 from flask import Flask, render_template, request, send_file
 import glob
 import os.path
+import requests
 
 app = Flask(__name__)
 
 startDeform = False                              # Indicates whether to start pinna deformation
+numRuns = 0
 
 
 @app.route('/', methods=['GET', 'POST'])
@@ -24,10 +26,14 @@ def handle_request():
         print(recent_file)
         return send_file(recent_file)
     if request.method == "POST":                 # Toggle start/stop pinna deformation if POST request received
-        if not startDeform:
-            startDeform = True
-        if startDeform:
-            startDeform = False
+        data = request.data
+        if data == "deform":
+            if not startDeform:
+                startDeform = True
+            if startDeform:
+                startDeform = False
+        else:
+            numRuns = data
     return '200'                                 # Just return something to make the computer gods happy
 
 

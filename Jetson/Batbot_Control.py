@@ -318,6 +318,7 @@ if __name__ == '__main__':
     # Ask user if they want to limit number of runs
     # Number of runs also set in GUI
     print('Enter number of runs to perform (inf for continuous runs): ')
+    #n_runs = webserver.numRuns       <--- This does NOT work properly yet
     n_runs = input()
     if n_runs != "inf":
         nruns = int(n_runs)
