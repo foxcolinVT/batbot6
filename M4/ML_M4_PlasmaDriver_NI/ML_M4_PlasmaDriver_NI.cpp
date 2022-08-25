@@ -3,11 +3,9 @@
  * Date created: 8/10/22
  */
 
-#include "ML_M4_PlasmaDriver_NI.hpp"
-#include "sine_tables.hpp"
-
-// TODO: Configure CCL and corresponding PIO
-// TODO: implement DAC and ADC functionality
+#include "header/ML_M4_PlasmaDriver_NI.hpp"
+#include "header/sine_tables.hpp"
+#include "header/utils.hpp"
 
 void MCLK_init(void){
 
@@ -53,35 +51,13 @@ void GCLK_init(void){
 
 }
 
-inline void TCC_enable(Tcc *tcc){ tcc->CTRLA.reg |= TCC_CTRLA_ENABLE; }
-
-inline void TCC_disable(Tcc *tcc){ tcc->CTRLA.reg &= ~TCC_CTRLA_ENABLE; }
-
-inline void TCC_swrst(Tcc *tcc){ tcc->CTRLA.reg |= TCC_CTRLA_SWRST; }
-
-static inline void TCC_sync(Tcc *tcc){ while(tcc->SYNCBUSY.reg); }
-
-static void TCC_CH_PORT_init(const EPortType port_grp, const uint32_t pin, const uint8_t pmux_msk, const uint8_t m4_pin){
-
-  PORT->Group[port_grp].PINCFG[pin].reg |= PORT_PINCFG_PMUXEN;
-
-  PORT->Group[port_grp].PMUX[pin >> 1].reg |= pmux_msk;
-
-  PORT->Group[port_grp].DIRSET.reg |= PORT_DIRSET_DIRSET(m4_pin);
-
-}
-
-static inline void TCC_CH_CC_set(volatile TCC_CC_Type *CCx, uint8_t count_val){ CCx->reg = TCC_CC_CC(count_val); }
-
 void TCC0_init(void){
       
   // disable TCC
   TCC_disable(TCC0);
-  TCC_sync(TCC0);
   
   // send software reset of TCC CTRLA.SWRST
   TCC_swrst(TCC0);
-  TCC_sync(TCC0);
 
   /*
   * Syncronization:
@@ -199,56 +175,14 @@ void TCC0_init(void){
   // capture compare buffer reg TCC0->CCBUF.reg, similar to PERBUF (pg 1882), NEEDS to wait for SYNC on read and write*                                                              
 }
 
-inline void TCC0_DT_set(uint8_t dth, uint8_t dtl){
-  TCC0->WEXCTRL.reg |= (TCC_WEXCTRL_DTIEN0 | TCC_WEXCTRL_DTIEN1 | TCC_WEXCTRL_DTLS(dtl) | TCC_WEXCTRL_DTHS(dth));
-}
-
-// mode: 4, 5, 6
-void TCC0_DITH_set(uint8_t mode, uint64_t cycles, uint64_t period, uint64_t compare){
-
-  uint64_t CTRLA_res_msk;
-  uint64_t PER_DITH_msk, CC_DITH_msk;
-  switch(mode){
-    case 5: {
-      CTRLA_res_msk = TCC_CTRLA_RESOLUTION_DITH5;
-      PER_DITH_msk = TCC_PER_DITH5_PER(period) | TCC_PER_DITH5_DITHER(cycles);
-      CC_DITH_msk = TCC_CC_DITH5_CC(compare) | TCC_CC_DITH5_DITHER(cycles);
-      break;
-    }
-
-    case 6: {
-      CTRLA_res_msk = TCC_CTRLA_RESOLUTION_DITH6;
-      PER_DITH_msk = TCC_PER_DITH6_PER(period) | TCC_PER_DITH6_DITHER(cycles);
-      CC_DITH_msk = TCC_CC_DITH6_CC(compare) | TCC_CC_DITH6_DITHER(cycles);
-      break;
-    }
-
-    default: {
-      CTRLA_res_msk = TCC_CTRLA_RESOLUTION_DITH4;
-      PER_DITH_msk = TCC_PER_DITH4_PER(period) | TCC_PER_DITH4_DITHER(cycles);
-      CC_DITH_msk = TCC_CC_DITH4_CC(compare) | TCC_CC_DITH4_DITHER(cycles);
-      break;
-    }
-  }
-
-  TCC0->CTRLA.reg |= CTRLA_res_msk;
-
-  TCC0->PER.reg = PER_DITH_msk;
-  //TCC_sync(TCC0);
-
-  TCC0->CC[ML_TCC0_CH0].reg = CC_DITH_msk;
-  TCC0->CC[ML_TCC0_CH1].reg = CC_DITH_msk;
-  TCC_sync(TCC0);
-}
+void TCC0_0_Handler(void){}
 
 void TCC1_init(void){
   // disable TCC
   TCC_disable(TCC1);
-  TCC_sync(TCC1);
   
   // send software reset of TCC CTRLA.SWRST
   TCC_swrst(TCC1);
-  TCC_sync(TCC1);
   
   TCC1->CTRLA.reg = TCC_CTRLA_PRESCALER_DIV1 |
                     TCC_CTRLA_PRESCSYNC_PRESC;                         
@@ -288,20 +222,8 @@ void TCC1_init(void){
 void TCC1_0_Handler(void){}
 
 static DmacDescriptor base_descriptor[12] __attribute__((aligned(16)));
-static DmacDescriptor descriptor __attribute__((aligned(16)));
+static DmacDescriptor descriptor[12] __attribute__((aligned(16)));
 static volatile DmacDescriptor wb_descriptor[12] __attribute__((aligned(16)));
-
-inline void DMAC_enable(void){ DMAC->CTRL.reg |= DMAC_CTRL_DMAENABLE; }
-
-inline void DMAC_swrst(void){ DMAC->CTRL.reg |= DMAC_CTRL_SWRST; }
-
-inline void DMAC_disable(void){ DMAC->CTRL.reg &= ~DMAC_CTRL_DMAENABLE; }
-
-inline void DMAC_CH_enable(char ch){ DMAC->Channel[ch].CHCTRLA.reg |= DMAC_CHCTRLA_ENABLE; }
-
-inline void DMAC_CH_disable(char ch){ DMAC->Channel[ch].CHCTRLA.reg &= ~DMAC_CHCTRLA_ENABLE; }
-
-inline void DMAC_CH_swrst(char ch){ DMAC->Channel[ch].CHCTRLA.reg |= DMAC_CHCTRLA_SWRST; }
 
 void DMAC_init(void){
 
@@ -327,7 +249,7 @@ void DMAC_init(void){
  // channel number of DMA channel written to CHCTRLA reg
  // trigger action set by writing to CHCTRLA.TRIGACT
  // trigger source set by writing to CHCTRLA.TRIGSRC
-  DMAC_CH_disable((uint8_t)ML_DMAC_CHIRP_CH);
+ /* DMAC_CH_disable((uint8_t)ML_DMAC_CHIRP_CH);
   DMAC_CH_swrst((uint8_t)ML_DMAC_CHIRP_CH);
 
   DMAC->Channel[ML_DMAC_CHIRP_CH].CHCTRLA.reg |= (DMAC_CHCTRLA_BURSTLEN_SINGLE |
@@ -336,7 +258,18 @@ void DMAC_init(void){
 
 
  // set channel priority to zero
-  DMAC->Channel[ML_DMAC_CHIRP_CH].CHPRILVL.reg |=  DMAC_CHPRILVL_PRILVL_LVL0; 
+  DMAC->Channel[ML_DMAC_CHIRP_CH].CHPRILVL.reg |=  DMAC_CHPRILVL_PRILVL_LVL0; */
+}
+
+void DMAC_CH_init(const uint8_t chnum, const uint32_t chsettings, const uint8_t prilvl){
+
+  DMAC_CH_disable(chnum);
+  DMAC_CH_swrst(chnum);
+
+  DMAC->Channel[chnum].CHCTRLA.reg = chsettings;
+
+  DMAC->Channel[chnum].CHPRILVL.reg = prilvl;
+
 }
 
 void DMAC_chirp_descriptor_init(const uint16_t btsettings, const uint16_t btcnt, const uint32_t srcaddr, const uint32_t dstaddr, const uint8_t bdindex){
@@ -350,50 +283,23 @@ void DMAC_chirp_descriptor_init(const uint16_t btsettings, const uint16_t btcnt,
                           DMAC_BTCTRL_STEPSIZE_X1;                // NEXT ADDR = ADDR + 1 * (beat size in bytes)
   */
 
-  descriptor.BTCTRL.reg = btsettings;
+  descriptor[bdindex].BTCTRL.reg = btsettings;
   // number of beats, ie bytes in our case, to send
-  descriptor.BTCNT.reg = btcnt;
+  descriptor[bdindex].BTCNT.reg = btcnt;
 
   // Location in memory of data to send. SRCADDR accepts last memory location of data
   //descriptor.SRCADDR.reg = (uint32_t)&SINE_WAVE_TBL_ALT[0] + SINE_LEN_ALT * sizeof(uint8_t);
-  descriptor.SRCADDR.reg = srcaddr;
+  descriptor[bdindex].SRCADDR.reg = srcaddr;
 
   // Send values to TCC0 count register, more specifically the update buffer, 
   // so byte placed in CCBUF from DMAC will be seen in CC reg next clock cycle
-  descriptor.DSTADDR.reg = dstaddr;
+  descriptor[bdindex].DSTADDR.reg = dstaddr;
 
   // Where to point to when BTCNT is reached, so point back to beginning
-  descriptor.DESCADDR.reg = (uint32_t) &base_descriptor[bdindex];
+  descriptor[bdindex].DESCADDR.reg = (uint32_t) &base_descriptor[bdindex];
 
   // copy setup descriptor ptr into base descriptor allocation
-  memcpy(&base_descriptor[bdindex], &descriptor, sizeof(DmacDescriptor));
-
-}
-
-
-
-void TCC0_0_Handler(void){}
-
-inline void CCL_enable(void){ CCL->CTRL.reg |= CCL_CTRL_ENABLE; }
-
-inline void CCL_disable(void){ CCL->CTRL.reg &= ~CCL_CTRL_ENABLE; }
-
-inline void CCL_swrst(void){ CCL->CTRL.reg |= CCL_CTRL_SWRST; }
-
-inline void CCL_CH_enable(uint8_t ch){ CCL->LUTCTRL[ch].reg |= CCL_LUTCTRL_ENABLE; }
-
-inline void CCL_CH_disable(uint8_t ch){ CCL->LUTCTRL[ch].reg &= ~CCL_LUTCTRL_ENABLE; }
-
-static const EPortType CCL_PORT_GRP = g_APinDescription[ML_CCL_CH0_PIN].ulPort;
-static const uint32_t CCL_PIN_CH0 = g_APinDescription[ML_CCL_CH0_PIN].ulPin;
-
-static void CCL_PORT_init(void){
-
-  PORT->Group[CCL_PORT_GRP].PINCFG[CCL_PIN_CH0].reg |= PORT_PINCFG_PMUXEN;
-
-  PORT->Group[CCL_PORT_GRP].PMUX[CCL_PIN_CH0 >> 1].reg |= ML_CCL_CH0_PMUX_msk;
-
-  PORT->Group[CCL_PORT_GRP].DIRSET.reg |= PORT_DIRSET_DIRSET(ML_M4_CCL_CH0_PIN);
+  memcpy(&base_descriptor[bdindex], &descriptor[bdindex], sizeof(DmacDescriptor));
 
 }
 
@@ -456,44 +362,18 @@ void CCL_init(void){
   
   //CCL->LUTCTRL[ML_CCL_LUT_AND_CH].reg &= ~CCL_LUTCTRL_LUTEI | ~CCL_LUTCTRL_LUTEO;
 
-  CCL_CH_enable((uint8_t)ML_CCL_LUT_AND_CH);
-  CCL_CH_enable((uint8_t)ML_CCL_LUT_BUF_CH);
-
-  CCL_PORT_init();
+  //CCL_CH_enable((uint8_t)ML_CCL_LUT_AND_CH);
+  //CCL_CH_enable((uint8_t)ML_CCL_LUT_BUF_CH);
   
 }
 
-inline void ADC_enable(Adc *ADCx){ ADCx->CTRLA.reg |= ADC_CTRLA_ENABLE; }
-
-inline void ADC_disable(Adc *ADCx){ ADCx->CTRLA.reg &= ~ADC_CTRLA_ENABLE; }
-
-inline void ADC_swrst(Adc *ADCx){ ADCx->CTRLA.reg |= ADC_CTRLA_SWRST; }
-
-static inline void ADC_sync(Adc *ADCx) { while(ADCx->SYNCBUSY.reg); }
-
-static const EPortType ADC0_PORT_GRP = g_APinDescription[ML_ADC0_AIN5_PIN].ulPort;
-static const uint32_t ADC0_PIN_AIN5 = g_APinDescription[ML_ADC0_AIN5_PIN].ulPin;
-
-static const EPortType ADC1_PORT_GRP = g_APinDescription[ML_ADC1_AIN6_PIN].ulPort;
-static const uint32_t ADC1_PIN_AIN6 = g_APinDescription[ML_ADC1_AIN6_PIN].ulPin;
-
-static void ADC_AIN_PORT_init(const EPortType port_grp, const uint32_t pin, const uint8_t pmux_msk){
-
-  PORT->Group[port_grp].PINCFG[pin].reg |= (PORT_PINCFG_PMUXEN | PORT_PINCFG_INEN);
-
-  PORT->Group[port_grp].PMUX[pin >> 1].reg |= pmux_msk;
-
-}
-
-void ADC_init(Adc *ADCx, const uint8_t muxneg_ain, const uint8_t muxpos_ain){
+void ADC_init(Adc *ADCx, const unsigned muxneg_ain, const unsigned muxpos_ain){
 
   // Write protected registers: CTRLA (except ENABLE and SWRT bits), EVCTRL, CALIB
 
   ADC_disable(ADCx);
-  ADC_sync(ADCx);
 
   ADC_swrst(ADCx);
-  ADC_sync(ADCx);
 
   // f_adc = f_gclk7/128 = 1Mhz
   ADCx->CTRLA.reg = ADC_CTRLA_PRESCALER_DIV128;
@@ -512,17 +392,25 @@ void ADC_init(Adc *ADCx, const uint8_t muxneg_ain, const uint8_t muxpos_ain){
                       ADC_AVGCTRL_ADJRES(0x0);     // division coefficient: 2^n steps
 
   ADCx->REFCTRL.reg = ADC_REFCTRL_REFSEL_INTVCC1;  // set reference voltage to VDDANA
+
+  //ADCx->INTENSET.reg = ADC_INTENSET_RESRDY;
+  //NVIC_SetPriority(ADC0_1_IRQn, 0);
+  //NVIC_EnableIRQ(ADC0_1_IRQn);
   
   // all of the above regs are write-protected
   ADC_sync(ADCx);
 }
+
+
+void ADC0_1_Handler(void){}
+
+
 
 const int sample_freq = 1E6;
 const double chirp_duration = 5E-3;
 const uint16_t num_samples = sample_freq * chirp_duration;
 
 uint16_t chirp_out_buffer[num_samples];
-
 uint16_t chirp_right_in_buffer[num_samples];
 uint16_t chirp_left_in_buffer[num_samples];
 
@@ -554,7 +442,6 @@ uint32_t generate_chirp(void){
   return (uint32_t)&chirp_out_buffer[0] + num_samples * sizeof(uint16_t);
 }
 
-
 void setup() {
 
   MCLK_init();
@@ -562,31 +449,43 @@ void setup() {
 
   TCC0_init();
 
-  TCC_CH_CC_set(&TCC0->CC[ML_TCC0_CH0], 50);
-  TCC_CH_CC_set(&TCC0->CC[ML_TCC0_CH1], 50);
-  TCC_sync(TCC0);
+  TCC_CH_CC_set(TCC0, ML_TCC0_CH0, 50);
+  TCC_CH_CC_set(TCC0, ML_TCC0_CH1, 50);
 
-  const EPortType TCC0_PORT_GRP = g_APinDescription[ML_TCC0_CH0_PIN].ulPort;
-  const uint32_t TCC0_PIN_CH0 = g_APinDescription[ML_TCC0_CH0_PIN].ulPin;
-  const uint32_t TCC0_PIN_CH1 = g_APinDescription[ML_TCC0_CH1_PIN].ulPin;
-
-  TCC_CH_PORT_init(TCC0_PORT_GRP, TCC0_PIN_CH0, ML_TCC0_CH0_PMUX_msk, ML_M4_TCC0_CH0_PIN);
-  TCC_CH_PORT_init(TCC0_PORT_GRP, TCC0_PIN_CH1, ML_TCC0_CH1_PMUX_msk, ML_M4_TCC0_CH1_PIN);
+  peripheral_port_init(ML_TCC0_CH0_PMUX_msk, ML_TCC0_CH0_PIN, OUT, DRV_OFF);
+  peripheral_port_init(ML_TCC0_CH1_PMUX_msk, ML_TCC0_CH1_PIN, OUT, DRV_OFF);
 
   TCC1_init();
 
-  TCC_CH_CC_set(&TCC1->CC[ML_TCC1_CH3], 128);
-  TCC_sync(TCC1);
+  TCC_CH_CC_set(TCC1, ML_TCC1_CH3, 128);
 
-  const EPortType TCC1_PORT_GRP = g_APinDescription[ML_TCC1_CH3_PIN].ulPort;
-  const uint32_t TCC1_PIN_CH3 = g_APinDescription[ML_TCC1_CH3_PIN].ulPin;
+  peripheral_port_init(ML_TCC1_CH3_PMUX_msk, ML_TCC1_CH3_PIN, OUT, DRV_OFF);
+  peripheral_port_init(ML_TCC1_CH0_PMUX_msk, ML_TCC1_CH0_PIN, OUT, DRV_OFF);
 
-  TCC_CH_PORT_init(TCC1_PORT_GRP, TCC1_PIN_CH3, ML_TCC1_CH3_PMUX_msk, ML_M4_TCC1_CH3_PIN);
+  ADC_init(ADC0,
+           ADC_INPUTCTRL_MUXNEG_GND,
+           ADC_INPUTCTRL_MUXPOS(get_ADC_channel_num(ML_ADC0_AIN5_PIN)));
 
-  CCL_init();
+  ADC_init(ADC1,
+           ADC_INPUTCTRL_MUXNEG_GND,
+           ADC_INPUTCTRL_MUXPOS(get_ADC_channel_num(ML_ADC1_AIN6_PIN)));
+
+  //CCL_init()
 
   DMAC_init();
 
+  uint32_t chirp_out_cs = DMAC_CHCTRLA_BURSTLEN_SINGLE |
+                          DMAC_CHCTRLA_TRIGACT_BLOCK  |      
+                          DMAC_CHCTRLA_TRIGSRC(ML_DMAC_TCC1_OVF_TRIG);
+
+  DMAC_CH_init(ML_DMAC_CHIRP_OUT_CH, chirp_out_cs, DMAC_CHPRILVL_PRILVL_LVL0);
+
+  uint32_t chirp_in_cs = DMAC_CHCTRLA_BURSTLEN_SINGLE |
+                         DMAC_CHCTRLA_TRIGACT_BLOCK;
+
+  DMAC_CH_init(ML_DMAC_CHIRP_RIGHT_IN_CH, (chirp_in_cs | DMAC_CHCTRLA_TRIGSRC(ML_DMAC_ADC0_RESRDY_TRIG)), DMAC_CHPRILVL_PRILVL_LVL1);
+  DMAC_CH_init(ML_DMAC_CHIRP_LEFT_IN_CH, (chirp_in_cs | DMAC_CHCTRLA_TRIGSRC(ML_DMAC_ADC1_RESRDY_TRIG)), DMAC_CHPRILVL_PRILVL_LVL1);
+  
   uint32_t chirp_out_srcaddr = generate_chirp();
 
   uint16_t chirp_out_ds = DMAC_BTCTRL_VALID |
@@ -595,7 +494,6 @@ void setup() {
                           DMAC_BTCTRL_BEATSIZE_HWORD |
                           DMAC_BTCTRL_SRCINC        |
                           DMAC_BTCTRL_STEPSIZE_X1;
-
   
   DMAC_chirp_descriptor_init(chirp_out_ds, num_samples, chirp_out_srcaddr, (uint32_t)&TCC1->CCBUF[ML_TCC1_CH3].reg, 0);
 
@@ -625,7 +523,12 @@ void setup() {
   TCC_enable(TCC0);
   TCC_enable(TCC1);
 
-  DMAC_CH_enable(ML_DMAC_CHIRP_CH);
+  ADC_enable(ADC0);
+  ADC_enable(ADC1);
+
+  DMAC_CH_enable(ML_DMAC_CHIRP_OUT_CH);
+  DMAC_CH_enable(ML_DMAC_CHIRP_RIGHT_IN_CH);
+  DMAC_CH_enable(ML_DMAC_CHIRP_LEFT_IN_CH);
   
   //CCL_enable();
 
