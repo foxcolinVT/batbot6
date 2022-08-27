@@ -112,7 +112,7 @@ void ADC_sync(Adc *ADCx){
 }
 
 void TCC0_DT_set(uint8_t dth, uint8_t dtl){
-  TCC0->WEXCTRL.reg |= (TCC_WEXCTRL_DTIEN0 | TCC_WEXCTRL_DTIEN1 | TCC_WEXCTRL_DTLS(dtl) | TCC_WEXCTRL_DTHS(dth));
+  TCC0->WEXCTRL.reg |= (TCC_WEXCTRL_DTIEN0 | TCC_WEXCTRL_DTLS(dtl) | TCC_WEXCTRL_DTHS(dth));
 }
 
 // mode: 4, 5, 6

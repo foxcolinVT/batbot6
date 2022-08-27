@@ -36,3 +36,4 @@ void ADC_enable(Adc *ADCx);
 void ADC_disable(Adc *ADCx);
 void ADC_swrst(Adc *ADCx);
 
+void TCC0_DT_set(uint8_t dth, uint8_t dtl);

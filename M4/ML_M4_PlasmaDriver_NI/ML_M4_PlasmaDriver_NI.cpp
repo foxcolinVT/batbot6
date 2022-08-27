@@ -141,7 +141,7 @@ void TCC0_init(void){
   
   
   // period reg
-  TCC0->PER.reg = TCC_PER_PER(100);                                       // period value set
+  TCC0->PER.reg = TCC_PER_PER(150);                                       // period value set
   //              TCC_PER_DITH4_DITHER(1) |                             // dithering cycle number
   //              TCC_PER_DITH4_PER(1)    |                             // period value set (if dithering enabled)
 
@@ -381,13 +381,26 @@ void ADC_init(Adc *ADCx, const unsigned muxneg_ain, const unsigned muxpos_ain){
   ADCx->CTRLB.reg = ADC_CTRLB_RESSEL_12BIT |        // 12-bit resolution
                     ADC_CTRLB_FREERUN;              // start new conversion when previous completes
 
+  // if IN+ > IN-, we can use single ended mode. If IN- is GND, then IN+ > 0 to get correct conversion
+  // if IN+ < IN- at any point, use differential mode to get correct conversion
+
   // set positive and negative mux inputs
   ADCx->INPUTCTRL.reg = muxneg_ain | muxpos_ain;
 
-  // sampling time = (SAMPLEN + 1) * (CLK_ADC) -> ST = CLK_ADC
+  // SAMPCTRL.SAMPLEN, sampling time = (SAMPLEN + 1) * (CLK_ADC) -> ST = CLK_ADC
+  // SAMPCTRL.OFFCOMP will add a buffer of time before ADC begins sampling 
+  // In freerunning mode, sampling rate Rs = f_ADC/(n_offcomp + n_sampling + n_data) 
+  // where n_data is the bit resolution, n_offcomp is compensation time, n_sampling is sampling time,
+  // and f_ADC = f_GCLKx / 2^(1 + CTRLA.PRESCALER)
+
   ADCx->SAMPCTRL.reg = ADC_SAMPCTRL_SAMPLEN(0x0);
 
-  // average control
+  // Accumulation
+  // results of consecutive conversions can be cumulated into an average
+  // this can be set in the AVGCTRL.SAMPLENUM
+  // note when accumulating more than 16 samples, RESULT reg is too small,
+  // and thus RESULT is right shifted to account
+  // see page 1592 for AVG.SAMPLENUM values
   ADCx->AVGCTRL.reg = ADC_AVGCTRL_SAMPLENUM_1 |    // number of samples added together
                       ADC_AVGCTRL_ADJRES(0x0);     // division coefficient: 2^n steps
 
@@ -403,8 +416,6 @@ void ADC_init(Adc *ADCx, const unsigned muxneg_ain, const unsigned muxpos_ain){
 
 
 void ADC0_1_Handler(void){}
-
-
 
 const int sample_freq = 1E6;
 const double chirp_duration = 5E-3;
@@ -449,8 +460,10 @@ void setup() {
 
   TCC0_init();
 
-  TCC_CH_CC_set(TCC0, ML_TCC0_CH0, 50);
-  TCC_CH_CC_set(TCC0, ML_TCC0_CH1, 50);
+  TCC_CH_CC_set(TCC0, ML_TCC0_CH0, 75);
+  TCC_CH_CC_set(TCC0, ML_TCC0_CH1, 75);
+
+  //TCC0_DT_set(0x20, 0x20);
 
   peripheral_port_init(ML_TCC0_CH0_PMUX_msk, ML_TCC0_CH0_PIN, OUT, DRV_OFF);
   peripheral_port_init(ML_TCC0_CH1_PMUX_msk, ML_TCC0_CH1_PIN, OUT, DRV_OFF);
