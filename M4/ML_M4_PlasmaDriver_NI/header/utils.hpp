@@ -24,6 +24,7 @@ void DMAC_swrst(void);
 void DMAC_CH_enable(const uint8_t chnum);
 void DMAC_CH_disable(const uint8_t chnum);
 void DMAC_CH_swrst(const uint8_t chnum);
+void DMAC_CH_intenset(const uint8_t chnum, const uint8_t intmsk, const uint32_t prilvl);
 
 void CCL_enable(void);
 void CCL_disable(void);
@@ -35,5 +36,8 @@ void ADC_sync(Adc *ADCx);
 void ADC_enable(Adc *ADCx);
 void ADC_disable(Adc *ADCx);
 void ADC_swrst(Adc *ADCx);
+void ADC_swtrig_start(Adc *ADCx);
+void ADC_slave_en(Adc *ADCx);
+void ADC_prescale_set(Adc *ADCx, const uint16_t prescaler);
 
 void TCC0_DT_set(uint8_t dth, uint8_t dtl);

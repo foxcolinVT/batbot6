@@ -72,6 +72,19 @@ void DMAC_CH_swrst(const uint8_t chnum){
     DMAC->Channel[chnum].CHCTRLA.reg |= DMAC_CHCTRLA_SWRST;
 }
 
+const static IRQn_Type DMAC_IRQn_lst[5] = {DMAC_0_IRQn, DMAC_1_IRQn, DMAC_2_IRQn, DMAC_3_IRQn, DMAC_4_IRQn};
+
+void DMAC_CH_intenset(const uint8_t chnum, const uint8_t intmsk, const uint32_t prilvl){
+
+    DMAC->Channel[chnum].CHINTENSET.reg |= intmsk;
+    
+    IRQn_Type IRQn = DMAC_IRQn_lst[chnum];
+
+    NVIC_SetPriority(IRQn, prilvl);
+
+    NVIC_EnableIRQ(IRQn);
+}
+
 void CCL_enable(void){
     CCL->CTRL.reg |= CCL_CTRL_ENABLE;
 }
@@ -109,6 +122,19 @@ void ADC_swrst(Adc *ADCx){
 
 void ADC_sync(Adc *ADCx){
     while(ADCx->SYNCBUSY.reg);
+}
+
+void ADC_swtrig_start(Adc *ADCx){
+    ADCx->SWTRIG.reg |= ADC_SWTRIG_START;
+    ADC_sync(ADCx);
+}
+
+void ADC_slave_en(Adc *ADCx){
+    ADCx->CTRLA.reg |= ADC_CTRLA_SLAVEEN;
+}
+
+void ADC_prescale_set(Adc *ADCx, const uint16_t prescaler){
+    ADCx->CTRLA.reg |= prescaler;
 }
 
 void TCC0_DT_set(uint8_t dth, uint8_t dtl){

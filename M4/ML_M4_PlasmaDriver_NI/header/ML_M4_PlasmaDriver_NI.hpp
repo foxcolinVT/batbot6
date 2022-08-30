@@ -5,6 +5,7 @@
 
 #include <Arduino.h>
 
+
 //#define ML_M4EXPRESS
 
 // Note: macros/data structures used w/o prefixes ML (Mueller Lab) 
@@ -96,15 +97,20 @@ void TCC1_init(void);
 #define ML_DMAC_ADC0_RESRDY_TRIG 0x44
 #define ML_DMAC_ADC1_RESRDY_TRIG 0x45
 
-#define ML_DMAC_CHIRP_OUT_CH 0
+#define ML_DMAC_CHIRP_OUT_CH 2
 #define ML_DMAC_CHIRP_RIGHT_IN_CH 1
-#define ML_DMAC_CHIRP_LEFT_IN_CH 2
+#define ML_DMAC_CHIRP_LEFT_IN_CH 0
 
 void DMAC_init(void);
 
 void DMAC_CH_init(const uint8_t chnum, const uint32_t chsettings, const uint8_t prilvl);
 
-void DMAC_chirp_descriptor_init(const uint16_t btsettings, const uint16_t btcnt, const uint32_t srcaddr, const uint32_t dstaddr, const uint8_t bdindex);
+void DMAC_chirp_descriptor_init(const uint16_t btsettings, 
+                                const uint16_t btcnt, 
+                                const uint32_t srcaddr, 
+                                const uint32_t dstaddr, 
+                                const uint32_t descaddr,
+                                DmacDescriptor *cpy);
 
 uint32_t generate_chirp(void);
 

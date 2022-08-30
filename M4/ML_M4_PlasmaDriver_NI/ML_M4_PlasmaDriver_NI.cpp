@@ -199,7 +199,7 @@ void TCC1_init(void){
   // We want a full duty cycle range out of ch3 from values given from DMA
   // Thus, make the TCC period = the maximum amplitude of the wavetable which is 0xff
   // TCC1->PER.reg = TCC_PER_PER(ML_TCC1_CH3_INITIAL_PER);   
-  TCC1->PER.reg = TCC_PER_PER(256);   
+  TCC1->PER.reg = TCC_PER_PER(300);   
   TCC_sync(TCC1);
   
   // start timer @ 50% duty cycle which would mean counting to half the period
@@ -221,9 +221,21 @@ void TCC1_init(void){
 
 void TCC1_0_Handler(void){}
 
+constexpr unsigned NUM_PAGES = 8;
+
 static DmacDescriptor base_descriptor[12] __attribute__((aligned(16)));
-static DmacDescriptor descriptor[12] __attribute__((aligned(16)));
+
+static DmacDescriptor descriptor __attribute__((aligned(16)));
+
+static DmacDescriptor linked_descriptor[2] __attribute__((aligned(16)));
+
+static DmacDescriptor right_linked_descriptor_alt[NUM_PAGES] __attribute__((aligned(16)));
+static DmacDescriptor left_linked_descriptor_alt[NUM_PAGES] __attribute__((aligned(16)));
+
+
 static volatile DmacDescriptor wb_descriptor[12] __attribute__((aligned(16)));
+
+
 
 void DMAC_init(void){
 
@@ -236,8 +248,6 @@ void DMAC_init(void){
 
   // SRAM addr of write-back section written to WRBADDR reg
   DMAC->WRBADDR.reg = (uint32_t) &wb_descriptor;
-
-  DMAC_enable();
 
   // Set priority level x by setting CTRL.LVLENx
   DMAC->CTRL.reg |= DMAC_CTRL_LVLEN0 | DMAC_CTRL_LVLEN1 | DMAC_CTRL_LVLEN2 | DMAC_CTRL_LVLEN3;
@@ -272,7 +282,12 @@ void DMAC_CH_init(const uint8_t chnum, const uint32_t chsettings, const uint8_t 
 
 }
 
-void DMAC_chirp_descriptor_init(const uint16_t btsettings, const uint16_t btcnt, const uint32_t srcaddr, const uint32_t dstaddr, const uint8_t bdindex){
+void DMAC_chirp_descriptor_init(const uint16_t btsettings, 
+                                const uint16_t btcnt, 
+                                const uint32_t srcaddr, 
+                                const uint32_t dstaddr, 
+                                const uint32_t descaddr,
+                                DmacDescriptor *cpy) {
 
    // descriptor setup
   /*descriptor.BTCTRL.reg = DMAC_BTCTRL_VALID          |            // Indicates that descriptor should be used
@@ -283,23 +298,22 @@ void DMAC_chirp_descriptor_init(const uint16_t btsettings, const uint16_t btcnt,
                           DMAC_BTCTRL_STEPSIZE_X1;                // NEXT ADDR = ADDR + 1 * (beat size in bytes)
   */
 
-  descriptor[bdindex].BTCTRL.reg = btsettings;
+  descriptor.BTCTRL.reg = btsettings;
   // number of beats, ie bytes in our case, to send
-  descriptor[bdindex].BTCNT.reg = btcnt;
+  descriptor.BTCNT.reg = btcnt;
 
   // Location in memory of data to send. SRCADDR accepts last memory location of data
   //descriptor.SRCADDR.reg = (uint32_t)&SINE_WAVE_TBL_ALT[0] + SINE_LEN_ALT * sizeof(uint8_t);
-  descriptor[bdindex].SRCADDR.reg = srcaddr;
+  descriptor.SRCADDR.reg = srcaddr;
 
   // Send values to TCC0 count register, more specifically the update buffer, 
   // so byte placed in CCBUF from DMAC will be seen in CC reg next clock cycle
-  descriptor[bdindex].DSTADDR.reg = dstaddr;
+  descriptor.DSTADDR.reg = dstaddr;
 
   // Where to point to when BTCNT is reached, so point back to beginning
-  descriptor[bdindex].DESCADDR.reg = (uint32_t) &base_descriptor[bdindex];
-
+  descriptor.DESCADDR.reg = descaddr;
   // copy setup descriptor ptr into base descriptor allocation
-  memcpy(&base_descriptor[bdindex], &descriptor[bdindex], sizeof(DmacDescriptor));
+  memcpy(cpy, &descriptor, sizeof(DmacDescriptor));
 
 }
 
@@ -332,7 +346,7 @@ const static uint8_t truth_buffer = 0b11110000;
        1  |   1   |   0   | T[6] = 1
        1  |   1   |   1   | T[7] = 1
 */
-const static uint8_t truth_and = 0b110000;
+const static uint8_t truth_and = 0b11000000;
 
 void CCL_init(void){
 
@@ -371,21 +385,35 @@ void ADC_init(Adc *ADCx, const unsigned muxneg_ain, const unsigned muxpos_ain){
 
   // Write protected registers: CTRLA (except ENABLE and SWRT bits), EVCTRL, CALIB
 
-  ADC_disable(ADCx);
+  //ADC_disable(ADCx);
 
-  ADC_swrst(ADCx);
+  //ADC_swrst(ADCx);
+
+  ADCx->INPUTCTRL.bit.MUXPOS = muxpos_ain;
+  //ADC_sync(ADCx);
+
+  ADCx->SAMPCTRL.bit.SAMPLEN = 0x02;
+  //ADC_sync(ADCx);
+
+  ADCx->CTRLB.reg = ADC_CTRLB_RESSEL_12BIT | ADC_CTRLB_FREERUN;
+  //ADC_sync(ADCx);
+
 
   // f_adc = f_gclk7/128 = 1Mhz
-  ADCx->CTRLA.reg = ADC_CTRLA_PRESCALER_DIV128;
+  //ADCx->CTRLA.reg = ADC_CTRLA_PRESCALER_DIV64;
+  //ADC_sync(ADCx);
 
-  ADCx->CTRLB.reg = ADC_CTRLB_RESSEL_12BIT |        // 12-bit resolution
-                    ADC_CTRLB_FREERUN;              // start new conversion when previous completes
+
+  //ADCx->CTRLB.reg = ADC_CTRLB_RESSEL_12BIT |        // 12-bit resolution
+  //                  ADC_CTRLB_FREERUN;              // start new conversion when previous completes
+  //ADC_sync(ADCx);
 
   // if IN+ > IN-, we can use single ended mode. If IN- is GND, then IN+ > 0 to get correct conversion
   // if IN+ < IN- at any point, use differential mode to get correct conversion
 
   // set positive and negative mux inputs
-  ADCx->INPUTCTRL.reg = muxneg_ain | muxpos_ain;
+  //ADCx->INPUTCTRL.reg = muxpos_ain;
+  //ADC_sync(ADCx);
 
   // SAMPCTRL.SAMPLEN, sampling time = (SAMPLEN + 1) * (CLK_ADC) -> ST = CLK_ADC
   // SAMPCTRL.OFFCOMP will add a buffer of time before ADC begins sampling 
@@ -393,7 +421,8 @@ void ADC_init(Adc *ADCx, const unsigned muxneg_ain, const unsigned muxpos_ain){
   // where n_data is the bit resolution, n_offcomp is compensation time, n_sampling is sampling time,
   // and f_ADC = f_GCLKx / 2^(1 + CTRLA.PRESCALER)
 
-  ADCx->SAMPCTRL.reg = ADC_SAMPCTRL_SAMPLEN(0x0);
+  //ADCx->SAMPCTRL.reg = ADC_SAMPCTRL_SAMPLEN(0x02);
+  //ADC_sync(ADCx);
 
   // Accumulation
   // results of consecutive conversions can be cumulated into an average
@@ -414,16 +443,23 @@ void ADC_init(Adc *ADCx, const unsigned muxneg_ain, const unsigned muxpos_ain){
   ADC_sync(ADCx);
 }
 
-
-void ADC0_1_Handler(void){}
-
+// 1Mhz sampling freq, chirp duration of 5E-3
+// sample rate = (resolution + 1 + samplen)/(ADC_GCLK / PRESCALE) = PRESCALE*(res + 1 + smp)/ADC_GCLK
+// PRESCALE = ADC_GCLK * SAMPLE_RATE /(res + 1 + samp)
+// PRESCALE = 120MHz * 1us/(12 + 1 + 2) = 8 -> ADC_CTRLA_PRESCALER_DIV8
+// NUM_SAMPLES = 1Mhz * 5ms = 5000 samples
 const int sample_freq = 1E6;
 const double chirp_duration = 5E-3;
 const uint16_t num_samples = sample_freq * chirp_duration;
 
-uint16_t chirp_out_buffer[num_samples];
-uint16_t chirp_right_in_buffer[num_samples];
-uint16_t chirp_left_in_buffer[num_samples];
+
+static uint16_t chirp_out_buffer[num_samples];
+static uint16_t chirp_right_in_buffer_alt[NUM_PAGES][num_samples];
+static uint16_t chirp_left_in_buffer_alt[NUM_PAGES][num_samples];
+
+static uint16_t chirp_right_in_buffer[num_samples];
+static uint16_t chirp_left_in_buffer[num_samples];
+
 
 uint32_t generate_chirp(void){
 
@@ -468,36 +504,25 @@ void setup() {
   peripheral_port_init(ML_TCC0_CH0_PMUX_msk, ML_TCC0_CH0_PIN, OUT, DRV_OFF);
   peripheral_port_init(ML_TCC0_CH1_PMUX_msk, ML_TCC0_CH1_PIN, OUT, DRV_OFF);
 
-  TCC1_init();
+  //TCC1_init();
 
-  TCC_CH_CC_set(TCC1, ML_TCC1_CH3, 128);
+  //TCC_CH_CC_set(TCC1, ML_TCC1_CH3, 128);
 
-  peripheral_port_init(ML_TCC1_CH3_PMUX_msk, ML_TCC1_CH3_PIN, OUT, DRV_OFF);
-  peripheral_port_init(ML_TCC1_CH0_PMUX_msk, ML_TCC1_CH0_PIN, OUT, DRV_OFF);
-
-  ADC_init(ADC0,
-           ADC_INPUTCTRL_MUXNEG_GND,
-           ADC_INPUTCTRL_MUXPOS(get_ADC_channel_num(ML_ADC0_AIN5_PIN)));
-
-  ADC_init(ADC1,
-           ADC_INPUTCTRL_MUXNEG_GND,
-           ADC_INPUTCTRL_MUXPOS(get_ADC_channel_num(ML_ADC1_AIN6_PIN)));
-
+  //peripheral_port_init(ML_TCC1_CH3_PMUX_msk, ML_TCC1_CH3_PIN, OUT, DRV_OFF);
+  //peripheral_port_init(ML_TCC1_CH0_PMUX_msk, ML_TCC1_CH0_PIN, OUT, DRV_OFF);
   //CCL_init()
+  
 
   DMAC_init();
+
+  DMAC_enable();
+
 
   uint32_t chirp_out_cs = DMAC_CHCTRLA_BURSTLEN_SINGLE |
                           DMAC_CHCTRLA_TRIGACT_BLOCK  |      
                           DMAC_CHCTRLA_TRIGSRC(ML_DMAC_TCC1_OVF_TRIG);
 
-  DMAC_CH_init(ML_DMAC_CHIRP_OUT_CH, chirp_out_cs, DMAC_CHPRILVL_PRILVL_LVL0);
-
-  uint32_t chirp_in_cs = DMAC_CHCTRLA_BURSTLEN_SINGLE |
-                         DMAC_CHCTRLA_TRIGACT_BLOCK;
-
-  DMAC_CH_init(ML_DMAC_CHIRP_RIGHT_IN_CH, (chirp_in_cs | DMAC_CHCTRLA_TRIGSRC(ML_DMAC_ADC0_RESRDY_TRIG)), DMAC_CHPRILVL_PRILVL_LVL1);
-  DMAC_CH_init(ML_DMAC_CHIRP_LEFT_IN_CH, (chirp_in_cs | DMAC_CHCTRLA_TRIGSRC(ML_DMAC_ADC1_RESRDY_TRIG)), DMAC_CHPRILVL_PRILVL_LVL1);
+  //DMAC_CH_init(ML_DMAC_CHIRP_OUT_CH, chirp_out_cs, DMAC_CHPRILVL_PRILVL_LVL1);
   
   uint32_t chirp_out_srcaddr = generate_chirp();
 
@@ -507,19 +532,72 @@ void setup() {
                           DMAC_BTCTRL_BEATSIZE_HWORD |
                           DMAC_BTCTRL_SRCINC        |
                           DMAC_BTCTRL_STEPSIZE_X1;
+
   
-  DMAC_chirp_descriptor_init(chirp_out_ds, num_samples, chirp_out_srcaddr, (uint32_t)&TCC1->CCBUF[ML_TCC1_CH3].reg, 0);
 
-  uint16_t chirp_in_ds = DMAC_BTCTRL_VALID |
-                         DMAC_BTCTRL_EVOSEL_DISABLE |
-                         DMAC_BTCTRL_BEATSIZE_HWORD |
-                         DMAC_BTCTRL_BLOCKACT_NOACT |
+  uint32_t chirp_in_cs = DMAC_CHCTRLA_TRIGACT_BURST;
+
+  uint16_t chirp_in_ds = DMAC_BTCTRL_BEATSIZE_HWORD |
                          DMAC_BTCTRL_DSTINC         |
-                         DMAC_BTCTRL_STEPSIZE_X1;
+                         DMAC_BTCTRL_VALID          |
+                         DMAC_BTCTRL_BLOCKACT_SUSPEND;
 
-  DMAC_chirp_descriptor_init(chirp_in_ds, num_samples, (uint32_t)&ADC0->RESULT.reg, (uint32_t)&chirp_right_in_buffer[0], 1);
-  DMAC_chirp_descriptor_init(chirp_in_ds, num_samples, (uint32_t)&ADC1->RESULT.reg, (uint32_t)&chirp_left_in_buffer[0], 2);
+  uint16_t chirp_in_btcnt = num_samples/2;
+  uint32_t chirp_in_addr_inc = chirp_in_btcnt * sizeof(uint16_t);
 
+  DMAC_CH_init(ML_DMAC_CHIRP_LEFT_IN_CH, (chirp_in_cs | DMAC_CHCTRLA_TRIGSRC(ADC0_DMAC_ID_RESRDY)), DMAC_CHPRILVL_PRILVL_LVL3);
+  
+  DMAC_chirp_descriptor_init(chirp_in_ds, 
+                             chirp_in_btcnt, 
+                             (uint32_t)&ADC0->RESULT.reg, 
+                             (uint32_t)&chirp_left_in_buffer + chirp_in_addr_inc, 
+                             (uint32_t)&linked_descriptor[0], 
+                             &base_descriptor[0]);
+
+  DMAC_chirp_descriptor_init(chirp_in_ds, 
+                             chirp_in_btcnt, 
+                             (uint32_t)&ADC0->RESULT.reg, 
+                             (uint32_t)&chirp_left_in_buffer[chirp_in_btcnt] + chirp_in_addr_inc,
+                             (uint32_t)&base_descriptor[0], 
+                             &linked_descriptor[0]);
+
+  DMAC_CH_intenset(ML_DMAC_CHIRP_LEFT_IN_CH, DMAC_CHINTENSET_SUSP, 0);
+
+  DMAC_CH_init(ML_DMAC_CHIRP_RIGHT_IN_CH, (chirp_in_cs | DMAC_CHCTRLA_TRIGSRC(ADC1_DMAC_ID_RESRDY)), DMAC_CHPRILVL_PRILVL_LVL3);
+
+  DMAC_chirp_descriptor_init(chirp_in_ds, 
+                             chirp_in_btcnt, 
+                             (uint32_t)&ADC1->RESULT.reg, 
+                             (uint32_t)&chirp_right_in_buffer + chirp_in_addr_inc, 
+                             (uint32_t)&linked_descriptor[1], 
+                             &base_descriptor[1]);
+
+  DMAC_chirp_descriptor_init(chirp_in_ds, 
+                             chirp_in_btcnt, 
+                             (uint32_t)&ADC1->RESULT.reg, 
+                             (uint32_t)&chirp_right_in_buffer[chirp_in_btcnt] + chirp_in_addr_inc,
+                             (uint32_t)&base_descriptor[1], 
+                             &linked_descriptor[1]);
+
+  DMAC_CH_intenset(ML_DMAC_CHIRP_RIGHT_IN_CH, DMAC_CHINTENSET_SUSP, 0);
+
+  ADC_init(ADC1,
+           ADC_INPUTCTRL_MUXNEG_GND,
+           ADC_INPUTCTRL_MUXPOS_AIN6_Val);
+
+  ADC_slave_en(ADC1);
+  
+  peripheral_port_init(ML_ADC1_AIN6_PMUX_msk, ML_ADC1_AIN6_PIN, IN, DRV_OFF);
+
+  ADC_init(ADC0,
+           ADC_INPUTCTRL_MUXNEG_GND,
+           ADC_INPUTCTRL_MUXPOS_AIN5_Val);
+
+  ADC_prescale_set(ADC0, ADC_CTRLA_PRESCALER_DIV64);
+
+  peripheral_port_init(ML_ADC0_AIN5_PMUX_msk, ML_ADC0_AIN5_PIN, IN, DRV_OFF);
+
+  //ADC_init_ALT();
 
 
 /*
@@ -533,15 +611,21 @@ void setup() {
   //TCC0_DITH_set(4, 12, 10, 3);
   //TCC0_DT_set(0x0, 0x2)
 
+
   TCC_enable(TCC0);
   TCC_enable(TCC1);
 
   ADC_enable(ADC0);
-  ADC_enable(ADC1);
+  //ADC_enable(ADC1);
 
-  DMAC_CH_enable(ML_DMAC_CHIRP_OUT_CH);
+  ADC_swtrig_start(ADC0);
+  //ADC_swtrig_start(ADC1);
+
+  //DMAC_CH_enable(ML_DMAC_CHIRP_OUT_CH);
+  //DMAC_CH_enable(ML_DMAC_CHIRP_RIGHT_IN_CH);
   DMAC_CH_enable(ML_DMAC_CHIRP_RIGHT_IN_CH);
   DMAC_CH_enable(ML_DMAC_CHIRP_LEFT_IN_CH);
+
   
   //CCL_enable();
 
@@ -550,4 +634,65 @@ void setup() {
 
 }
 
-void loop() {}
+volatile boolean rdy0 = false;
+volatile boolean rdy1 = false;
+
+void loop() {
+
+  //Serial.print("T");
+
+  if(rdy0){
+    Serial.println(F("Results 0"));
+    for(uint32_t i=0; i < num_samples/2; i++){
+      Serial.printf("%d: %d\n", i, chirp_left_in_buffer[i]);
+    }
+    Serial.println();
+    rdy0 = false;
+  }
+
+  if(rdy1){
+    Serial.println(F("Results 1"));
+    for(uint32_t i=num_samples/2; i < num_samples; i++){
+      Serial.printf("%d: %d\n", i, chirp_left_in_buffer[i]);
+    }
+    Serial.println();
+    rdy1 = false;
+  }
+  //while(!ADC0->INTFLAG.bit.RESRDY);
+  //Serial.printf("%d, ", ADC0->RESULT.reg);
+  //Serial.print("T");
+}
+
+void DMAC_0_Handler(void){
+
+  static uint8_t count0 = 0;
+
+  if(DMAC->Channel[ML_DMAC_CHIRP_LEFT_IN_CH].CHINTFLAG.bit.SUSP){
+
+    DMAC->Channel[ML_DMAC_CHIRP_LEFT_IN_CH].CHCTRLB.reg = DMAC_CHCTRLB_CMD_RESUME;
+    DMAC->Channel[ML_DMAC_CHIRP_LEFT_IN_CH].CHINTFLAG.bit.SUSP = 1;
+
+    if(count0){
+      rdy1 = true;
+    } else rdy0 = true;
+
+    count0 = (count0 + 1) % 2;
+  }
+
+}
+
+void DMAC_1_Handler(void){
+
+  static uint8_t count1 = 0;
+
+  if(DMAC->Channel[ML_DMAC_CHIRP_RIGHT_IN_CH].CHINTFLAG.bit.SUSP){
+
+    DMAC->Channel[ML_DMAC_CHIRP_RIGHT_IN_CH].CHCTRLB.reg = DMAC_CHCTRLB_CMD_RESUME;
+    DMAC->Channel[ML_DMAC_CHIRP_RIGHT_IN_CH].CHINTFLAG.bit.SUSP = 1;
+
+    count1 = (count1 + 1) % 2;
+  }
+
+}
+
+
