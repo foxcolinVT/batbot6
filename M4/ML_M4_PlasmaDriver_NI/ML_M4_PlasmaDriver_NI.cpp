@@ -141,7 +141,7 @@ void TCC0_init(void){
   
   
   // period reg
-  TCC0->PER.reg = TCC_PER_PER(150);                                       // period value set
+  TCC0->PER.reg = TCC_PER_PER(30);                                       // period value set
   //              TCC_PER_DITH4_DITHER(1) |                             // dithering cycle number
   //              TCC_PER_DITH4_PER(1)    |                             // period value set (if dithering enabled)
 
@@ -221,7 +221,7 @@ void TCC1_init(void){
 
 void TCC1_0_Handler(void){}
 
-constexpr unsigned NUM_PAGES = 8;
+const uint32_t num_pages = 8;
 
 static DmacDescriptor base_descriptor[12] __attribute__((aligned(16)));
 
@@ -229,13 +229,10 @@ static DmacDescriptor descriptor __attribute__((aligned(16)));
 
 static DmacDescriptor linked_descriptor[2] __attribute__((aligned(16)));
 
-static DmacDescriptor right_linked_descriptor_alt[NUM_PAGES] __attribute__((aligned(16)));
-static DmacDescriptor left_linked_descriptor_alt[NUM_PAGES] __attribute__((aligned(16)));
-
+static DmacDescriptor right_linked_descriptor_alt[num_pages] __attribute__((aligned(16)));
+static DmacDescriptor left_linked_descriptor_alt[num_pages] __attribute__((aligned(16)));
 
 static volatile DmacDescriptor wb_descriptor[12] __attribute__((aligned(16)));
-
-
 
 void DMAC_init(void){
 
@@ -313,7 +310,7 @@ void DMAC_chirp_descriptor_init(const uint16_t btsettings,
   // Where to point to when BTCNT is reached, so point back to beginning
   descriptor.DESCADDR.reg = descaddr;
   // copy setup descriptor ptr into base descriptor allocation
-  memcpy(cpy, &descriptor, sizeof(DmacDescriptor));
+  memcpy((void *)cpy, &descriptor, sizeof(DmacDescriptor));
 
 }
 
@@ -451,15 +448,47 @@ void ADC_init(Adc *ADCx, const unsigned muxneg_ain, const unsigned muxpos_ain){
 const int sample_freq = 1E6;
 const double chirp_duration = 5E-3;
 const uint16_t num_samples = sample_freq * chirp_duration;
-
+const uint32_t chirp_in_addr_inc = num_samples * sizeof(uint16_t);
 
 static uint16_t chirp_out_buffer[num_samples];
-static uint16_t chirp_right_in_buffer_alt[NUM_PAGES][num_samples];
-static uint16_t chirp_left_in_buffer_alt[NUM_PAGES][num_samples];
+static uint16_t chirp_right_in_buffer_alt[num_pages][num_samples];
+static uint16_t chirp_left_in_buffer_alt[num_pages][num_samples];
 
-static uint16_t chirp_right_in_buffer[num_samples];
-static uint16_t chirp_left_in_buffer[num_samples];
+void ld_setup(uint16_t alt_buffer[num_pages][num_samples], 
+              const uint32_t npages, 
+              const uint16_t nsamples, 
+              const uint32_t srcaddr,
+              const uint16_t btsettings,
+              const uint32_t basecpy,
+              DmacDescriptor ld[num_pages]
+              ){
+            
+  const uint32_t buff_addr_inc = nsamples * sizeof(uint16_t);
 
+  DmacDescriptor run;
+
+  run.SRCADDR.reg = srcaddr;
+  run.BTCNT.reg = nsamples;
+  run.BTCTRL.reg = btsettings;
+
+  run.DESCADDR.reg = (uint32_t)&ld[0];
+  run.DSTADDR.reg = (uint32_t)&alt_buffer[0] + buff_addr_inc;
+
+  memcpy((void *)basecpy, &run, sizeof(DmacDescriptor));
+
+  for(uint32_t i=1; i < npages; i++){
+
+    run.DESCADDR.reg = (uint32_t)&ld[i];
+    run.DSTADDR.reg = (uint32_t)&alt_buffer[i] + buff_addr_inc;
+
+    memcpy((void *)&ld[i - 1], &run, sizeof(DmacDescriptor));
+  }
+
+  run.DESCADDR.reg = (uint32_t) basecpy;
+  run.DSTADDR.reg = (uint32_t)&alt_buffer[npages - 1] + buff_addr_inc;
+
+  memcpy((void *)&ld[npages - 1], &run, sizeof(DmacDescriptor));
+}
 
 uint32_t generate_chirp(void){
 
@@ -496,33 +525,31 @@ void setup() {
 
   TCC0_init();
 
-  TCC_CH_CC_set(TCC0, ML_TCC0_CH0, 75);
-  TCC_CH_CC_set(TCC0, ML_TCC0_CH1, 75);
+  TCC_CH_CC_set(TCC0, ML_TCC0_CH0, 15);
+  TCC_CH_CC_set(TCC0, ML_TCC0_CH1, 15);
 
   //TCC0_DT_set(0x20, 0x20);
 
   peripheral_port_init(ML_TCC0_CH0_PMUX_msk, ML_TCC0_CH0_PIN, OUT, DRV_OFF);
   peripheral_port_init(ML_TCC0_CH1_PMUX_msk, ML_TCC0_CH1_PIN, OUT, DRV_OFF);
 
-  //TCC1_init();
+  TCC1_init();
 
-  //TCC_CH_CC_set(TCC1, ML_TCC1_CH3, 128);
+  TCC_CH_CC_set(TCC1, ML_TCC1_CH3, 128);
 
-  //peripheral_port_init(ML_TCC1_CH3_PMUX_msk, ML_TCC1_CH3_PIN, OUT, DRV_OFF);
-  //peripheral_port_init(ML_TCC1_CH0_PMUX_msk, ML_TCC1_CH0_PIN, OUT, DRV_OFF);
+  peripheral_port_init(ML_TCC1_CH3_PMUX_msk, ML_TCC1_CH3_PIN, OUT, DRV_OFF);
+  peripheral_port_init(ML_TCC1_CH0_PMUX_msk, ML_TCC1_CH0_PIN, OUT, DRV_OFF);
   //CCL_init()
   
-
   DMAC_init();
 
   DMAC_enable();
-
 
   uint32_t chirp_out_cs = DMAC_CHCTRLA_BURSTLEN_SINGLE |
                           DMAC_CHCTRLA_TRIGACT_BLOCK  |      
                           DMAC_CHCTRLA_TRIGSRC(ML_DMAC_TCC1_OVF_TRIG);
 
-  //DMAC_CH_init(ML_DMAC_CHIRP_OUT_CH, chirp_out_cs, DMAC_CHPRILVL_PRILVL_LVL1);
+  DMAC_CH_init(ML_DMAC_CHIRP_OUT_CH, chirp_out_cs, DMAC_CHPRILVL_PRILVL_LVL2);
   
   uint32_t chirp_out_srcaddr = generate_chirp();
 
@@ -533,7 +560,14 @@ void setup() {
                           DMAC_BTCTRL_SRCINC        |
                           DMAC_BTCTRL_STEPSIZE_X1;
 
-  
+  DMAC_chirp_descriptor_init(
+    chirp_out_ds,
+    num_samples,
+    chirp_out_srcaddr,
+    (uint32_t)&TCC1->CCBUF[ML_TCC1_CH3].reg,
+    (uint32_t)&base_descriptor[ML_DMAC_CHIRP_OUT_CH],
+    &base_descriptor[ML_DMAC_CHIRP_OUT_CH]
+  );
 
   uint32_t chirp_in_cs = DMAC_CHCTRLA_TRIGACT_BURST;
 
@@ -542,42 +576,31 @@ void setup() {
                          DMAC_BTCTRL_VALID          |
                          DMAC_BTCTRL_BLOCKACT_SUSPEND;
 
-  uint16_t chirp_in_btcnt = num_samples/2;
-  uint32_t chirp_in_addr_inc = chirp_in_btcnt * sizeof(uint16_t);
-
   DMAC_CH_init(ML_DMAC_CHIRP_LEFT_IN_CH, (chirp_in_cs | DMAC_CHCTRLA_TRIGSRC(ADC0_DMAC_ID_RESRDY)), DMAC_CHPRILVL_PRILVL_LVL3);
+
+  ld_setup(
+    chirp_left_in_buffer_alt,
+    num_pages,
+    num_samples,
+    (uint32_t)&ADC0->RESULT.reg,
+    chirp_in_ds,
+    (uint32_t)&base_descriptor[0],
+    left_linked_descriptor_alt
+  );
   
-  DMAC_chirp_descriptor_init(chirp_in_ds, 
-                             chirp_in_btcnt, 
-                             (uint32_t)&ADC0->RESULT.reg, 
-                             (uint32_t)&chirp_left_in_buffer + chirp_in_addr_inc, 
-                             (uint32_t)&linked_descriptor[0], 
-                             &base_descriptor[0]);
-
-  DMAC_chirp_descriptor_init(chirp_in_ds, 
-                             chirp_in_btcnt, 
-                             (uint32_t)&ADC0->RESULT.reg, 
-                             (uint32_t)&chirp_left_in_buffer[chirp_in_btcnt] + chirp_in_addr_inc,
-                             (uint32_t)&base_descriptor[0], 
-                             &linked_descriptor[0]);
-
   DMAC_CH_intenset(ML_DMAC_CHIRP_LEFT_IN_CH, DMAC_CHINTENSET_SUSP, 0);
 
   DMAC_CH_init(ML_DMAC_CHIRP_RIGHT_IN_CH, (chirp_in_cs | DMAC_CHCTRLA_TRIGSRC(ADC1_DMAC_ID_RESRDY)), DMAC_CHPRILVL_PRILVL_LVL3);
 
-  DMAC_chirp_descriptor_init(chirp_in_ds, 
-                             chirp_in_btcnt, 
-                             (uint32_t)&ADC1->RESULT.reg, 
-                             (uint32_t)&chirp_right_in_buffer + chirp_in_addr_inc, 
-                             (uint32_t)&linked_descriptor[1], 
-                             &base_descriptor[1]);
-
-  DMAC_chirp_descriptor_init(chirp_in_ds, 
-                             chirp_in_btcnt, 
-                             (uint32_t)&ADC1->RESULT.reg, 
-                             (uint32_t)&chirp_right_in_buffer[chirp_in_btcnt] + chirp_in_addr_inc,
-                             (uint32_t)&base_descriptor[1], 
-                             &linked_descriptor[1]);
+  ld_setup(
+    chirp_right_in_buffer_alt,
+    num_pages,
+    num_samples,
+    (uint32_t)&ADC1->RESULT.reg,
+    chirp_in_ds,
+    (uint32_t)&base_descriptor[1],
+    right_linked_descriptor_alt
+  );
 
   DMAC_CH_intenset(ML_DMAC_CHIRP_RIGHT_IN_CH, DMAC_CHINTENSET_SUSP, 0);
 
@@ -621,7 +644,7 @@ void setup() {
   ADC_swtrig_start(ADC0);
   //ADC_swtrig_start(ADC1);
 
-  //DMAC_CH_enable(ML_DMAC_CHIRP_OUT_CH);
+  DMAC_CH_enable(ML_DMAC_CHIRP_OUT_CH);
   //DMAC_CH_enable(ML_DMAC_CHIRP_RIGHT_IN_CH);
   DMAC_CH_enable(ML_DMAC_CHIRP_RIGHT_IN_CH);
   DMAC_CH_enable(ML_DMAC_CHIRP_LEFT_IN_CH);
@@ -641,23 +664,31 @@ void loop() {
 
   //Serial.print("T");
 
-  if(rdy0){
-    Serial.println(F("Results 0"));
-    for(uint32_t i=0; i < num_samples/2; i++){
-      Serial.printf("%d: %d\n", i, chirp_left_in_buffer[i]);
-    }
-    Serial.println();
-    rdy0 = false;
-  }
+  /*(if(rdy0){
 
-  if(rdy1){
-    Serial.println(F("Results 1"));
-    for(uint32_t i=num_samples/2; i < num_samples; i++){
-      Serial.printf("%d: %d\n", i, chirp_left_in_buffer[i]);
+    for(uint32_t i=0; i < num_pages; i++){
+      for(uint32_t j=0; j < num_samples; j++){
+        if(j % 10 == 0){
+          Serial.println();
+        }
+        Serial.printf("%d, ", chirp_left_in_buffer_alt[i][j]);
+      }
     }
-    Serial.println();
-    rdy1 = false;
-  }
+
+    rdy0 = false;
+  }*/
+/*
+  if(rdy1){
+    for(uint32_t i=0; i < num_pages; i++){
+      for(uint32_t j=0; j < num_samples; j++){
+        if(j % 20 == 0){
+          Serial.println();
+        }
+        Serial.printf("%d, ", chirp_right_in_buffer_alt[i][j]);
+      }
+    }
+  }*/
+
   //while(!ADC0->INTFLAG.bit.RESRDY);
   //Serial.printf("%d, ", ADC0->RESULT.reg);
   //Serial.print("T");
@@ -672,11 +703,10 @@ void DMAC_0_Handler(void){
     DMAC->Channel[ML_DMAC_CHIRP_LEFT_IN_CH].CHCTRLB.reg = DMAC_CHCTRLB_CMD_RESUME;
     DMAC->Channel[ML_DMAC_CHIRP_LEFT_IN_CH].CHINTFLAG.bit.SUSP = 1;
 
-    if(count0){
-      rdy1 = true;
-    } else rdy0 = true;
-
-    count0 = (count0 + 1) % 2;
+    if(count0 >= 8){
+      rdy0 = true;
+      count0 = 0;
+    } else count0++;
   }
 
 }
@@ -690,7 +720,10 @@ void DMAC_1_Handler(void){
     DMAC->Channel[ML_DMAC_CHIRP_RIGHT_IN_CH].CHCTRLB.reg = DMAC_CHCTRLB_CMD_RESUME;
     DMAC->Channel[ML_DMAC_CHIRP_RIGHT_IN_CH].CHINTFLAG.bit.SUSP = 1;
 
-    count1 = (count1 + 1) % 2;
+    if(count1 >= 8){
+      rdy1 = true;
+      count1 = 0;
+    } else count1++;
   }
 
 }

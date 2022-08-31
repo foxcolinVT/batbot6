@@ -22,7 +22,7 @@ uint16_t adcResults1[5000];
 uint16_t adcBufR[8][5000];
 uint16_t adcBufL[8][5000];
 
-void ld_setup(void){
+void lde_setup(void){
 
   descriptor.DESCADDR.reg = (uint32_t)&linked_descriptor[0];
   descriptor.SRCADDR.reg = (uint32_t)&ADC1->RESULT.reg;
@@ -128,7 +128,45 @@ void lda_setup(void){
   memcpy(&right_linked_descriptor_alt[7], &descriptor, sizeof(descriptor));
 }
 
-void setup() {
+const uint32_t num_pages = 8;
+const uint32_t num_samples = 5000;
+
+void ldl_setup(uint16_t alt_buffer[num_pages][num_samples], 
+              const uint32_t npages, 
+              const uint16_t nsamples, 
+              const uint32_t srcaddr,
+              const uint16_t btsettings,
+              DmacDescriptor ld[num_pages], 
+              DmacDescriptor *basecpy){
+
+  const uint32_t buff_addr_inc = nsamples * sizeof(uint16_t);
+
+  DmacDescriptor run;
+
+  run.SRCADDR.reg = srcaddr;
+  run.BTCNT.reg = nsamples;
+  run.BTCTRL.reg = btsettings;
+
+  run.DESCADDR.reg = (uint32_t)&ld[0];
+  run.DSTADDR.reg = (uint32_t)&alt_buffer[0] + buff_addr_inc;
+
+  memcpy((void *)basecpy, &run, sizeof(DmacDescriptor));
+
+  for(uint32_t i=1; i < npages; i++){
+
+    run.DESCADDR.reg = (uint32_t)&ld[i];
+    run.DSTADDR.reg = (uint32_t)&alt_buffer[i] + buff_addr_inc;
+
+    memcpy((void *)&ld[i - 1], &run, sizeof(DmacDescriptor));
+  }
+
+  run.DESCADDR.reg = (uint32_t) basecpy;
+  run.DSTADDR.reg = (uint32_t)&alt_buffer[npages - 1] + buff_addr_inc;
+
+  memcpy((void *)&ld[npages - 1], &run, sizeof(DmacDescriptor));
+}
+
+void ADC_test(void) {
 
   MCLK->CPUDIV.reg = MCLK_CPUDIV_DIV_DIV1;
 
@@ -150,8 +188,31 @@ void setup() {
   DMAC->BASEADDR.reg = (uint32_t)&base_descriptor;
   DMAC->WRBADDR.reg = (uint32_t)&wb_descriptor;
   DMAC->CTRL.reg = DMAC_CTRL_DMAENABLE | DMAC_CTRL_LVLEN(0xf);
+  
+  uint16_t chirp_in_ds = DMAC_BTCTRL_BEATSIZE_HWORD |
+                         DMAC_BTCTRL_DSTINC         |
+                         DMAC_BTCTRL_VALID          |
+                         DMAC_BTCTRL_BLOCKACT_SUSPEND;
 
-  lda_setup();
+  ldl_setup(
+    adcBufR,
+    num_pages,
+    num_samples,
+    (uint32_t)&ADC1->RESULT.reg,
+    chirp_in_ds,
+    right_linked_descriptor_alt,
+    &base_descriptor[1]
+  );
+
+  ldl_setup(
+    adcBufL,
+    num_pages,
+    num_samples,
+    (uint32_t)&ADC0->RESULT.reg,
+    chirp_in_ds,
+    left_linked_descriptor_alt,
+    &base_descriptor[0]
+  );
 
   DMAC->Channel[0].CHCTRLA.reg = DMAC_CHCTRLA_TRIGSRC(ADC0_DMAC_ID_RESRDY) |
                                  DMAC_CHCTRLA_TRIGACT_BURST;
@@ -211,27 +272,8 @@ void setup() {
   pinMode(11, OUTPUT);
 }
 
-volatile bool rdy0 = false;
 
-void loop() {
-
-  if(rdy0){
-    for(unsigned i=0; i < 8; i++){
-      for(unsigned j=0; j < 5000; j++){
-        if(j % 10){
-          Serial.println();
-        }
-        Serial.printf("%d, ", adcBufL[i][j]);
-      }
-    }
-    rdy0 = false;
-  }
-
-
-
-}
-
-void DMAC_0_Handler(void){
+void DMAC_0_Handlerp(void){
 
   static unsigned count = 0;
 
@@ -241,14 +283,14 @@ void DMAC_0_Handler(void){
     DMAC->Channel[0].CHINTFLAG.bit.SUSP = 1;
 
     if(count >= 8){
-      rdy0 = true;
+      //rdy0 = true;
       count = 0;
     } else count++;
 
   }
 }
 
-void DMAC_1_Handler(void){
+void DMAC_1_Handlerp(void){
 
   static uint8_t count1 = 0;
   
