@@ -72,14 +72,10 @@ void DMAC_CH_swrst(const uint8_t chnum){
     DMAC->Channel[chnum].CHCTRLA.reg |= DMAC_CHCTRLA_SWRST;
 }
 
-const static IRQn_Type DMAC_IRQn_lst[5] = {DMAC_0_IRQn, DMAC_1_IRQn, DMAC_2_IRQn, DMAC_3_IRQn, DMAC_4_IRQn};
-
-void DMAC_CH_intenset(const uint8_t chnum, const uint8_t intmsk, const uint32_t prilvl){
+void DMAC_CH_intenset(const uint8_t chnum, const IRQn_Type IRQn, const uint8_t intmsk, const uint32_t prilvl){
 
     DMAC->Channel[chnum].CHINTENSET.reg |= intmsk;
     
-    IRQn_Type IRQn = DMAC_IRQn_lst[chnum];
-
     NVIC_SetPriority(IRQn, prilvl);
 
     NVIC_EnableIRQ(IRQn);
@@ -135,6 +131,39 @@ void ADC_slave_en(Adc *ADCx){
 
 void ADC_prescale_set(Adc *ADCx, const uint16_t prescaler){
     ADCx->CTRLA.reg |= prescaler;
+}
+
+void SERCOM_SPI_sync(SercomSpi *SPIx){
+    while(SPIx->SYNCBUSY.reg);
+}
+
+void SERCOM_SPI_enable(SercomSpi *SPIx){
+    SPIx->CTRLA.reg |= SERCOM_SPI_CTRLA_ENABLE;
+    SERCOM_SPI_sync(SPIx);
+}
+
+void SERCOM_SPI_disable(SercomSpi *SPIx){
+    SPIx->CTRLA.reg &= ~SERCOM_SPI_CTRLA_ENABLE;
+}
+
+void SERCOM_SPI_swrst(SercomSpi *SPIx){
+    SPIx->CTRLA.reg |= SERCOM_SPI_CTRLA_SWRST;
+    SERCOM_SPI_sync(SPIx);
+}
+
+void SERCOM_SPI_rxen(SercomSpi *SPIx){
+    SPIx->CTRLB.reg |= SERCOM_SPI_CTRLB_RXEN;
+    SERCOM_SPI_sync(SPIx);
+}
+
+void SERCOM_SPI_intenset(SercomSpi *SPIx, IRQn_Type IRQn, const uint8_t intmsk, const uint8_t prilvl){
+
+    SPIx->INTENSET.reg |= intmsk;
+
+    NVIC_SetPriority(IRQn, prilvl);
+
+    NVIC_EnableIRQ(IRQn);
+
 }
 
 void TCC0_DT_set(uint8_t dth, uint8_t dtl){
