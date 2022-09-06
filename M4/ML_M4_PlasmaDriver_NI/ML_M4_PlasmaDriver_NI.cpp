@@ -3,9 +3,9 @@
  * Date created: 8/10/22
  */
 
-#include "header/ML_M4_PlasmaDriver_NI.hpp"
-#include "header/sine_tables.hpp"
-#include "header/utils.hpp"
+#include <header/ML_M4_PlasmaDriver_NI.hpp>
+#include <header/sine_tables.hpp>
+#include <header/utils.hpp>
 
 void MCLK_init(void){
 

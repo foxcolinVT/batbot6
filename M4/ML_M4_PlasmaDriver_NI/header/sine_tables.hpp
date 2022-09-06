@@ -1,3 +1,9 @@
+/*
+ * Author: Ben Westcott
+ * Date created: 8/10/22
+ */
+
+
 #define SINE_LEN 256
 
 uint16_t SINE_WAVE_TBL[SINE_LEN] = {

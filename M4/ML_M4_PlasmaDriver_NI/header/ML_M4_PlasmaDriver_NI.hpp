@@ -5,7 +5,6 @@
 
 #include <Arduino.h>
 
-
 //#define ML_M4EXPRESS
 
 // Note: macros/data structures used w/o prefixes ML (Mueller Lab) 
