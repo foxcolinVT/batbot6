@@ -67,3 +67,11 @@ Please also read into C macros. Not everything has to be declared as a variable.
 
 Functional Description
 
+```mermaid
+graph TD;
+    M4-->t;
+    A-->C;
+    B-->D;
+    C-->D;
+```
+
