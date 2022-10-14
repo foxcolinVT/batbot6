@@ -69,6 +69,9 @@ Functional Description
 
 <img width="466" alt="Screen Shot 2022-10-13 at 10 46 31 PM" src="https://user-images.githubusercontent.com/29962669/195752257-9de46abd-a966-4504-82bf-fcdf6d332e68.png">
 
+Lets start with explaining each of the above modules:
 
+- SRAM(Static RAM): This is the MCU's main memory, and is where our program data exists. We will have to read and write from this memory during data aquisition. 
+- DMAC(Direct memory access controller): Typically, if we need to read or write data to and from peripherals, the CPU would serve as the itermediary in transmission. Since memory R/W instructions cost a few clock cycles each, then using the CPU to pass data between peripherals and memory is inefficient. The DMAC allows peripherals to directly access SRAM without CPU intervention. Thus, the DMA talks to the ADC, which is receiving data (hopefully the chirp we emitted) from the microphones, and the PWMC (called TCC w/in SAMD51 hardware defs and datasheet), which requires data from SRAM (the encoded chirp).
 
 
