@@ -36,11 +36,11 @@ This is a simple one to avoid. Arduino's serial object wants to set some of its 
 
 - Reading and writing registers
 When working with registers (even when using libraries it is very common that you will have to directly read and write to registers), make sure to use the predefined bit masks i.e. please refrain from setting registers like this:
-
+```
 some_reg = (1 << 10) | (1 << 5) | (1 << 8) | ...
 
 some_reg = 0x45
-
+```
 Although the top one is slightly better than doing that math by hand and just setting the register equal to the resulting value, both are extremely ambiguous and will require you and others to spend time determining what these bits are actually setting. Instead, the MCU manufacturer provides hardware definitions already. Although these will already exist on your computer, download a copy **HERE** and keep them handy. 
 
 ==============================================================================================================
