@@ -67,15 +67,7 @@ Please also read into C macros. Not everything has to be declared as a variable.
 
 Functional Description
 
-```mermaid
-graph TD;
-    M4(SAMD51)-->Plasma_Driver;
-    Microphone_R-->M4(SAMD51);
-    Mircophone_L-->M4(SAMD51);
-    Plasma_Driver-->Power_Bridge;
-    Power_Bridge-->Coil;
-    Coil-->Chirp;
-    Chirp-->Microphone_R;
-    Chirp-->Mircophone_L;
-```
+<img width="466" alt="Screen Shot 2022-10-13 at 10 46 31 PM" src="https://user-images.githubusercontent.com/29962669/195752257-9de46abd-a966-4504-82bf-fcdf6d332e68.png">
+
+
 
