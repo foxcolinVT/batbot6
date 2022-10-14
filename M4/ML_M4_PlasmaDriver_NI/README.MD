@@ -76,6 +76,6 @@ graph TD;
     Power_Bridge-->Coil;
     Coil-->Chirp;
     Chirp-->Microphone_R;
-    Chirp-->Microphone_L;
+    Chirp-->Mircophone_L;
 ```
 
