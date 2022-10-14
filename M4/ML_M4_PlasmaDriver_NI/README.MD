@@ -25,8 +25,8 @@ some_handler:
 
 loop:
 	if data_ready
-	then blah
-	     .... 
+	then 
+	     blah.... 
 	     data_ready = false
 ```
 It should be clear that this code will only R/W data also used by a handler when the associated interrupt is not being handled. 
