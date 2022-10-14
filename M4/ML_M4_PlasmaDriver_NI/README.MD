@@ -69,10 +69,10 @@ Functional Description
 
 ```mermaid
 graph TD;
-    M4(SAMD51)-->Plasma Driver;
+    M4(SAMD51)-->Plasma_Driver;
     Microphone(R)-->M4(SAMD51);
     Mircophone(L)-->M4(SAMD51);
-    Plasma Driver-->Power Bridge;
-    Power Bridge-->Coil;
+    Plasma_Driver-->Power_Bridge;
+    Power_Bridge-->Coil;
 ```
 
