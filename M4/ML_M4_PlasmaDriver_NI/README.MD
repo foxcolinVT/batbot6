@@ -4,7 +4,7 @@ It is recommended that you use Visual Studio Code with the PlatformIO extension 
 
 As I will get into later, the SAMD51 gives the capability of multiple clock domains and dedicated peripheral busses,  which are useful because we can run our peripherals like ADCs, DACs, PWM controllers, etc., asynchronously from the CPU, alleviating it from the clock cycles it would take to move data from one peripheral to another or to and from memory. Because of this, we have to synchronize clock domains in order to modify some peripheral registers in our code. This is fairly analogous to how multi threading is handled with mutex locks. Basically, if we try to access data that is being written by another process in a different clock domain, how can we determine whether the data we are reading is the right data? In some cases, not synchronizing clocks before or after a R/W operation, will cause the CPU will throw an unrecoverable exception and halt. 
 
-========================================================================================================
+=======================================================================================================
 
 Other things which may cause unrecoverable exceptions:
 
@@ -43,7 +43,7 @@ some_reg = 0x45
 ```
 Although the top one is slightly better than doing that math by hand and just setting the register equal to the resulting value, both are extremely ambiguous and will require you and others to spend time determining what these bits are actually setting. Instead, the MCU manufacturer provides hardware definitions already. Although these will already exist on your computer, download a copy **HERE** and keep them handy. 
 
-========================================================================================================
+=======================================================================================================
 
 You will also need the datasheet for the SAMD51 board. Fair warning, this datasheet is roughly 1000 pages long and can be very daunting at first. It explains every single nook and cranny of this MCU in immense detail and should hopefully serve as the number one resource when developing code. That being said, the datasheet explains a few things very poorly (rather the implementation of some things is not very intuitive). However, this is for the most part not true and the organization of the MCU may just take some getting used to. 
 
@@ -55,7 +55,7 @@ Do not use hardware definitions ending in "_val". This is the raw value to be se
 
 I initially had a hard time translating what the datasheet says to actual code, but after working with it more, patterns emerged and the datasheet became a much more powerful tool. 
 
-========================================================================================================
+=======================================================================================================
 
 The main driver code exists in ML_M4_PlasmaDriver_NI.cpp and hpp. There is also a utils.cpp, hpp. The utils serves as a place to put hardware configuration code that is typically redundant across all peripherals. For example, almost all peripherals can be enabled, disabled and software reset. In other words, if it is code that is not important in the explanation of the system, it should go into the utils. 
 
@@ -63,7 +63,7 @@ Although this is said in about every coding class ever, please do not over or un
 
 Please also read into C macros. Not everything has to be declared as a variable. This is also inefficient. Instead, macro definitions are resolved by the precompiler and replaces all macro definitions in the code with their raw defined value before the code is sent to the compiler. 
 
-========================================================================================================
+=======================================================================================================
 
 Functional Description
 
