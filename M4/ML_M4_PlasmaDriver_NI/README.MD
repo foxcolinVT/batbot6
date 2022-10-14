@@ -71,7 +71,7 @@ Functional Description
 graph TD;
     M4(SAMD51)-->Plasma_Driver;
     Microphone_R-->M4(SAMD51);
-    Mircophone L-->M4(SAMD51);
+    Mircophone_L-->M4(SAMD51);
     Plasma_Driver-->Power_Bridge;
     Power_Bridge-->Coil;
     Coil-->Chirp;
