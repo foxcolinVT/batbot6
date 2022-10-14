@@ -15,6 +15,7 @@ concise).
 - Handling interrupts:
 Due to the inherent nature of interrupts, if we modify some data within an interrupt handler, we have to be careful about accessing that data in our application loop. Attempting to access data data of this nature can and will lead to unrecoverable exceptions. To avoid this:
 
+```
 data_ready = false
 
 some_handler:
@@ -27,7 +28,7 @@ loop:
 	then blah
 	     .... 
 	     data_ready = false
-
+```
 It should be clear that this code will only R/W data also used by a handler when the associated interrupt is not being handled. 
 
 - Serial:
