@@ -180,8 +180,8 @@ Then, we make a descriptor for each 5ms buffer and link them circularly. That is
 
 ```mermaid
 graph TD;
-    D0--D1;
+    D0-->D1;
     D1-->D2;
-    ...;
-    
+    ...-->D7;
+    D7-->D0; 
 ```
