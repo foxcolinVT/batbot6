@@ -167,4 +167,21 @@ Now we define our descriptor settings:
 
 Lastly, we pass our source address, descriptor settings, length of our output buffer, the destination address (in this case, as we dicussed earlier it will be placed into a ```CCBUF``` for one of the given TCCx channels, for us this is channel 3), An address to the next descriptor (think of a linked list), and lastly where this descriptor should be placed in memory such that the DMAC recgonizes it as a descriptor. A base descriptor is then the first descriptor the DMAC sees when it goes to serve one of its channels (ie. goes to serve the PWMC, or ADCs. Each of the ADCs has its own channel). For TCCx, its base descriptor tells the DMAC to handle sending the entire output chirp buffer to TCCx in increments of the counter period. So when its done, we tell the DMAC to point back to the base descriptor which will repeat this process. 
 
-The concept of a base descriptor and linked descriptors becomes very important when dealing with transmitting data from the ADC. In this case, We rely on the ADC to tell the DMAC that it has a single uint16_t ready to be moved to memory. Thus, if we configure the ADC descriptor like we did for the PWMC, then we will be sending the same uint16_t to memory instead of sending incremental samples like we want. Instead, we setup a linked list of descriptors which are mostly identical to each other with the exception of the destination address and the next descriptor address.
+The concept of a base descriptor and linked descriptors becomes very important when dealing with transmitting data from the ADC. In this case, we are limited by the fact that the DMAC can only handle sendingsome amount (I cannot remeber what this value is atm) half words per transfer. Our ADC buffers are two dimensional arrays with size ```NUM_PAGES * NUM_SAMPLES = 8 * 5000 = 40000 * sizeof(uint16_t)```. 
+
+```
+// sampling rate is 1MHz = 1E6 samples/sec
+time to fill buffer = num samples * 1/(sampling rate) = 40000 samples * 1/(1E6 samples/sec) = 40000 samples * 1/1E6 sec/samples = 40ms
+
+// chirp duration = 5ms
+40ms/8 = 5ms, so 8 pages of 5000 uint16_ts
+```
+Then, we make a descriptor for each 5ms buffer and link them circularly. That is:
+
+```mermaid
+graph TD;
+    D0--D1;
+    D1-->D2;
+    ...;
+    
+```
