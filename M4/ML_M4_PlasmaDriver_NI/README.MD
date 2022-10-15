@@ -94,8 +94,6 @@ Other modules which play a part in this system:
 
 Now, I would like to speak on the relationships the DMAC shares with the ADC and PWMC, since by explaining this, hopefully the entire functional system will begin to make sense.
 
-PWMC: 
-
 So first, we need to generate the data we are going to output as the bat chirp. This is done in ```uint32_t generate_chirp(void)```. Notice that this function fills up a buffer called ```chirp_out_buffer```, which is ```num_samples``` long (notice that this is the same length as the ADC buffers). Thus, this buffer holds the chirp data that we will use later to modulate a square wave. Also, notice that this function returns the address of the top of this buffer: ```&chirp_out_buffer + num_samples * sizeof(uint16_t)```. After we have called this function, SRAM will hold this chirp data at ```&chirp_out_buffer```. 
 
 Lets look at how we can actually modulate a square wave. Before we initialize a PWMC module (TCC0, TCC1, ..., TCCx), we ask the GCLK controller to pass one of our clocks to the PWMC module. Passing a clock to a peripheral is handled by ```GCLK_PCH_set``` function. Now, during initialization of TCCx, we are given the option to prescale this clock. For the TCCs that we use, this prescaler is set to one.
@@ -116,15 +114,58 @@ For example, if we have our ```PER = 300```, ```CC = 150``` and we are staring w
 
 Our goal is to update the ```CC``` register every counter period with a value from our chirp buffer. To avoid synchronization issues, we actually change the value withing ```CCBUF``` which is a buffer register that will automatically move its value to ```CC``` in accordance to TCCx's clock domain. 
 
-This is where it gets a bit tricky. Instead of updating ```CCBUF``` directly with the processor, we have the DMAC handle this data transmission. The DMAC accomplishes this with a few different mechanisms. First, the DMAC contains channels which we can dedicate to handling different jobs. One of these jobs will be giving TCCx's CCBUF the chirp data from memory. Each DMAC channel needs to be given a set of rules which it will abide by before, during and after data transmission. I will not go into everything we can modify within these settings, but I will go over the notable ones.
+This is where it gets a bit tricky. Instead of updating ```CCBUF``` directly with the processor, we have the DMAC handle this data transmission. The DMAC accomplishes this with a few different mechanisms. The DMAC contains channels which we can dedicate to handling different jobs. One of these jobs will be giving TCCx's CCBUF the chirp data from memory. Each DMAC channel needs to be given a set of rules which it will abide by before, during and after data transmission. I will not go into everything we can modify within these settings, but I will go over the notable ones.
 
+For the PWMC these settings are:
 
+```
+uint32_t chirp_out_cs =   DMAC_CHCTRLA_BURSTLEN_SINGLE |
+                          DMAC_CHCTRLA_TRIGACT_BLOCK  |      		
+                          DMAC_CHCTRLA_TRIGSRC(ML_DMAC_TCC1_OVF_TRIG);  
+```
+The first flag tells the DMAC that we want to send one piece of data, in our case a uint16_t per data transfer. The second flag indicates that one transfer occurs when the DMAC recieves a trigger to start operation. The last flag allows us to specify when we want to send data. In our case, we want to send a new HWORD every time TCC1's counter value reaches its maximum and is going to reset back to zero, ie at the start of every timer period. These settings along with the DMAC channel number, and a priority level are used to initialize a DMAC channel:
 
+```DMAC_CH_init(ML_DMAC_CHIRP_OUT_CH, chirp_out_cs, DMAC_CHPRILVL_PRILVL_LVL2);```
+
+Next, we are going to define the concept of a descriptor. A descriptor is a collection of all the nessesary information required for the DMAC to send/recieve the right amount of data in the right locations. It contains a list of settings which tell the DMAC how to handle this information and contains the information itself. This is all contained within ```DmacDescriptor``` data strcuture.
+
+```
+  uint32_t chirp_out_srcaddr = generate_chirp();
+
+  uint16_t chirp_out_ds = DMAC_BTCTRL_VALID |
+                          DMAC_BTCTRL_EVOSEL_DISABLE |
+                          DMAC_BTCTRL_BLOCKACT_NOACT |
+                          DMAC_BTCTRL_BEATSIZE_HWORD |
+                          DMAC_BTCTRL_SRCINC        |
+                          DMAC_BTCTRL_STEPSIZE_X1;
+
+  DMAC_chirp_descriptor_init(
+    chirp_out_ds,
+    num_samples,
+    chirp_out_srcaddr,
+    (uint32_t)&TCC1->CCBUF[ML_TCC1_CH3].reg,
+    (uint32_t)&base_descriptor[ML_DMAC_CHIRP_OUT_CH],
+    &base_descriptor[ML_DMAC_CHIRP_OUT_CH]
+  );
+  
+  void DMAC_chirp_descriptor_init(const uint16_t btsettings, 
+                                const uint16_t btcnt, 
+                                const uint32_t srcaddr, 
+                                const uint32_t dstaddr, 
+                                const uint32_t descaddr,
+                                DmacDescriptor *cpy);
+```
+
+There is alot to unpack here, so I will try to explain it all in the best way possible. First, we generate the chirp data as discussed earlier which returns the address of the top of the output chirp buffer in memory. This is because the DMAC references memory from its apex location. I'm not entirely sure why, but that's how it is.
+
+Now we define our descriptor settings:
 
 - Validity (```DMAC_BTCTRL_VALID```): This flag tells the DMAC that this descriptor is meant to be served and thus should not be ignored. 
 - Beat size (```DMAC_BTCTRL_BEATSIZE_```): This sets the size of the data that we are dealing with. In our case this is ```uint16_t``` which corresponds to the hardware macro ```DMAC_BTCTRL_BEATSIZE_HWORD```. 
 - Source or destinination incrementation: This flag tells the DMAC whether to increment the source or the destination pointer. For TCCx, we will need to increment the source pointer i.e., the pointer pointing to the location of the chirp data we generated in memory. In other words, after we send one value from our output chirp buffer to TCCx, the next value we want to send is the one immediately following the one we just sent. In the case of the ADC, we need to increment the destination pointer since the destination is a buffer in memory in which the ADC results are stored. Otherwise, we would be overwriting the same place in memory every time there is a new value transferred from the ADC to memory. 
 - Block act (```DMAC_BLOCKACT_```): This flag tells the DMAC what to do after we have finished handling the given descriptor. For TCCx, we tell the DMAC to do nothing (```DMAC_BLOCKACT_NOACT```) and for the ADC, we tell the DMAC to suspend operation (```DMAC_BTCTRL_BLOCKACT_SUSPEND```, which consequently triggers an interrupt to tell us when this occurs)
+
+Lastly, we pass our source address, descriptor settings, length of our output buffer, the destination address (in this case, as we dicussed earlier it will be placed into a ```CCBUF``` for one of the given TCCx channels, for us this is channel 3), An address to the next descriptor (think of a linked list), and lastly where this descriptor should be placed in memory such that the DMAC recgonizes it as a descriptor. A base descriptor is then the first descriptor the DMAC sees when it goes to serve one of its channels (ie. goes to server the PWMC, or ADCs. Each of the ADCs has its own channel). For TCCx, its base descriptor tells the DMAC to handle sending the entire output chirp buffer to TCCx in increments of the counter period. So when its done, we tell the DMAC to point back to the base descriptor which will repeat this process. 
 
 
 
