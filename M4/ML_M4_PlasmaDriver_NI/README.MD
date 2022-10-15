@@ -189,3 +189,17 @@ graph TD;
     D6-->D7;
     D7-->D0; 
 ```
+
+Initializing this list for one ADC is handled by:
+
+```
+static void ld_setup(uint16_t alt_buffer[num_pages][num_samples], 
+                     const uint32_t npages, 
+                     const uint16_t nsamples, 
+                     const uint32_t srcaddr,
+                     const uint16_t btsettings,
+                     const uint32_t basecpy,
+                     DmacDescriptor ld[num_pages])
+```
+
+Thus, this function is called to initialize both ADCs in the setup function. 
