@@ -182,6 +182,6 @@ Then, we make a descriptor for each 5ms buffer and link them circularly. That is
 graph TD;
     D0-->D1;
     D1-->D2;
-    ...-->D7;
+    PUNCTUATION-->D7;
     D7-->D0; 
 ```
