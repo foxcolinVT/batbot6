@@ -92,5 +92,40 @@ Other modules which play a part in this system:
 
 - PORT: Handles configuring I/O (this is one of the things w/in the SAMD51 that is a bit annoying to work with)
 
+Now, I would like to speak on the relationships the DMAC shares with the ADC and PWMC, since by explaining this, hopefully the entire functional system will begin to make sense.
+
+PWMC: 
+
+So first, we need to generate the data we are going to output as the bat chirp. This is done in ```uint32_t generate_chirp(void)```. Notice that this function fills up a buffer called ```chirp_out_buffer```, which is ```num_samples``` long (notice that this is the same length as the ADC buffers). Thus, this buffer holds the chirp data that we will use later to modulate a square wave. Also, notice that this function returns the address of the top of this buffer: ```&chirp_out_buffer + num_samples * sizeof(uint16_t)```. After we have called this function, SRAM will hold this chirp data at ```&chirp_out_buffer```. 
+
+Lets look at how we can actually modulate a square wave. Before we initialize a PWMC module (TCC0, TCC1, ..., TCCx), we ask the GCLK controller to pass one of our clocks to the PWMC module. Passing a clock to a peripheral is handled by ```GCLK_PCH_set``` function. Now, during initialization of TCCx, we are given the option to prescale this clock. For the TCCs that we use, this prescaler is set to one.
+
+As a side note, prescaling is a common feature accross many of the peripherals within the SAMD51, including the ADC which we will get to later.
+
+The next important part of initialization is to set TCCx's period register. TCCx actually contains a counter, which counts up to a certain value before resetting back to zero. (this is a massive oversimplification as there are many different counting modes within each TCCx) This value will be our ```PER``` register. You can kind of think of the PER register as a secondary prescaler, because in a sense, that's what we're doing. If ```PER = 1```, then it should be clear that we will get a square wave output at a frequency of:
+
+```f_GCLK/(PER*TCC_prescaler) = 120Mhz/(1*1)``` in our case.
+
+If ```PER = 300```, then ```120Mhz/(300*1) = 400 kHz```
+
+Now, we have a fixed duty cycle square wave whose frequency is fixed to some value we have set. 
+
+Now, we want to modulate this wave by changing its duty cycles using the values we stored for the chirp. Each TCCx has a few different capture/compare channels which we will use to accomplish this. If we set a capture/compare value for one of these channels, then with increment of the TCCx counter, this CC value is compared to the current TCCx counter value. If they are equal, then we do something. In our case, we want to send the output high or low which will define our duty cycle. 
+
+For example, if we have our ```PER = 300```, ```CC = 150``` and we are staring with logic one, then when TCCx's counter reaches 150, then our output will be sent to logic zero for the remainer of the counting to 300. When we reach 300, then the wave will reset back to logic one. Thus, it follows that we should get a 50% duty cycle wave. 
+
+Our goal is to update the ```CC``` register every counter period with a value from our chirp buffer. To avoid synchronization issues, we actually change the value withing ```CCBUF``` which is a buffer register that will automatically move its value to ```CC``` in accordance to TCCx's clock domain. 
+
+This is where it gets a bit tricky. Instead of updating ```CCBUF``` directly with the processor, we have the DMAC handle this data transmission. The DMAC accomplishes this with a few different mechanisms. First, the DMAC contains channels which we can dedicate to handling different jobs. One of these jobs will be giving TCCx's CCBUF the chirp data from memory. Each DMAC channel needs to be given a set of rules which it will abide by before, during and after data transmission. I will not go into everything we can modify within these settings, but I will go over the notable ones.
+
+
+
+
+- Validity (```DMAC_BTCTRL_VALID```): This flag tells the DMAC that this descriptor is meant to be served and thus should not be ignored. 
+- Beat size (```DMAC_BTCTRL_BEATSIZE_```): This sets the size of the data that we are dealing with. In our case this is ```uint16_t``` which corresponds to the hardware macro ```DMAC_BTCTRL_BEATSIZE_HWORD```. 
+- Source or destinination incrementation: This flag tells the DMAC whether to increment the source or the destination pointer. For TCCx, we will need to increment the source pointer i.e., the pointer pointing to the location of the chirp data we generated in memory. In other words, after we send one value from our output chirp buffer to TCCx, the next value we want to send is the one immediately following the one we just sent. In the case of the ADC, we need to increment the destination pointer since the destination is a buffer in memory in which the ADC results are stored. Otherwise, we would be overwriting the same place in memory every time there is a new value transferred from the ADC to memory. 
+- Block act (```DMAC_BLOCKACT_```): This flag tells the DMAC what to do after we have finished handling the given descriptor. For TCCx, we tell the DMAC to do nothing (```DMAC_BLOCKACT_NOACT```) and for the ADC, we tell the DMAC to suspend operation (```DMAC_BTCTRL_BLOCKACT_SUSPEND```, which consequently triggers an interrupt to tell us when this occurs)
+
+
 
 
