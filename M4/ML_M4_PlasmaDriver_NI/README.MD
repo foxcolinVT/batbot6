@@ -12,6 +12,9 @@ Other things which may cause unrecoverable exceptions:
 I am not opposed to using libraries where they are applicable, however, this code configures many parts of the MCU manually, which a library may overwrite causing a many number of problems. If you do use a library, try to find the most lightweight implementation and use that (we want as little dependencies as possible to keep the code 
 concise).
 
+- Bad dynamic memory management:
+Please do not allocate memory in runtime unless it is absolutely nessesary. If you do however, please ensure that you are freeing this memory when finished with it. 
+
 - Handling interrupts:
 Due to the inherent nature of interrupts, if we modify some data within an interrupt handler, we have to be careful about accessing that data in our application loop. Attempting to access data data of this nature can and will lead to unrecoverable exceptions. To avoid this:
 
@@ -71,7 +74,23 @@ Functional Description
 
 Lets start with explaining each of the above modules:
 
+- ADC(Analog to digital converter): This handles mappig the voltages from the microphones into a range of digital values. In our case, we can map from 0 to ```MAX(unit16_t)```. 
+
+- PWMC(PWM controller): This handles outputting a pulse width modulated bat chirp. 
+
 - SRAM(Static RAM): This is the MCU's main memory, and is where our program data exists. We will have to read and write from this memory during data aquisition. 
+
 - DMAC(Direct memory access controller): Typically, if we need to read or write data to and from peripherals, the CPU would serve as the itermediary in transmission. Since memory R/W instructions cost a few clock cycles each, then using the CPU to pass data between peripherals and memory is inefficient. The DMAC allows peripherals to directly access SRAM without CPU intervention. Thus, the DMA talks to the ADC, which is receiving data (hopefully the chirp we emitted) from the microphones, and the PWMC (called TCC w/in SAMD51 hardware defs and datasheet), which requires data from SRAM (the encoded chirp).
+
+Other modules which play a part in this system:
+
+- GCLK(generick clock controller): Handles configuration of the base MCU clock and handles sending clock signals to the various peripherals
+
+- MCLK(master clock): Configured by GCLK, this is the clock that the MCU's processor uses
+
+- NVIC(nested vector interrupt controller): Allows us to register, trigger and handle interrupts
+
+- PORT: Handles configuring I/O (this is one of the things w/in the SAMD51 that is a bit annoying to work with)
+
 
 
