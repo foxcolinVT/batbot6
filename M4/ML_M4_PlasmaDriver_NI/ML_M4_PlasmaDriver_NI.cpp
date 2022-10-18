@@ -3,9 +3,13 @@
  * Date created: 8/10/22
  */
 
-#include <header/ML_M4_PlasmaDriver_NI.hpp>
-#include <header/sine_tables.hpp>
-#include <header/utils.hpp>
+#include "header/ML_M4_PlasmaDriver_NI.hpp"
+#include "header/sine_tables.hpp"
+#include "header/utils.hpp"
+
+#define JETSON_SERIAL Serial // Jetson connection over USB port for hi-buad rate output (120-180 runs/s)
+
+uint16_t left_in_index, right_in_index;
 
 void MCLK_init(void){
 
@@ -293,7 +297,7 @@ void TCC1_init(void){
 void TCC1_0_Handler(void){}
 
 // number of arrays of ADC samples we need
-const uint32_t num_pages = 8;
+const uint32_t num_pages = 7;               //Can be 8, needs to be 7 for compatibility
 
 // DMAC looks for the base descriptor when serving a request
 static DmacDescriptor base_descriptor[12] __attribute__((aligned(16)));
@@ -518,7 +522,7 @@ void ADC_init(Adc *ADCx, const unsigned muxneg_ain, const unsigned muxpos_ain){
 // NUM_SAMPLES = 1Mhz * 5ms = 5000 samples
 const int sample_freq = 1E6;
 const double chirp_duration = 5E-3;
-const uint16_t num_samples = sample_freq * chirp_duration;
+const uint16_t num_samples = 4096;   //Changed for serial output
 const uint32_t chirp_in_addr_inc = num_samples * sizeof(uint16_t);
 
 static uint16_t chirp_out_buffer[num_samples];
@@ -722,7 +726,8 @@ void setup() {
   
   //CCL_enable();
 
-  Serial.begin(115200);
+  //Serial.begin(115200);
+  JETSON_SERIAL.begin(128000);
   while(!Serial);
 
 }
@@ -731,6 +736,46 @@ volatile boolean rdy0 = false;
 volatile boolean rdy1 = false;
 
 void loop() {
+// This flag turns to true when the data is ready to send via UART
+  
+  //If the Jetson is connected and ready to send data
+  if (JETSON_SERIAL.available()) {                                                 
+    uint8_t opcode = JETSON_SERIAL.read();    //Reading the data the Jetson sent          
+    // Start run
+    if (opcode == 0x10) {        // If the Jetson send over the OPCODE "0x10" it is not ready to recieve data
+      rdy0 = false;  
+      rdy1 = false;  
+      left_in_index = 0;
+      right_in_index = 0;  
+    }
+
+    // Check run status                                                     
+    else if (opcode == 0x20) {           // If the incoming OPCODE is '0x20' then the M4 will return the 'data_ready' flag (true/false)
+
+      JETSON_SERIAL.write(rdy1 && rdy0);   // Outputs TRUE or FALSE to the python script
+
+    }
+    // Retreive left ear values   
+    else if (opcode == 0x30) {           // Once the OPCODE '0x30' is recieved, the M4 will send the left ear's data
+      JETSON_SERIAL.write(num_pages - left_in_index);
+      while (left_in_index < num_pages) {
+          JETSON_SERIAL.write(
+            reinterpret_cast<uint8_t *>(chirp_left_in_buffer_alt[left_in_index++]),
+            sizeof(uint16_t) * num_samples);
+        }
+    }
+    // Retreive right buffer
+    else if (opcode == 0x31) {            // Once OPCODE '0x31' is recieved, the M4 sends the right ear's data
+      JETSON_SERIAL.write(num_pages - right_in_index);
+      while (right_in_index < num_pages) {
+          JETSON_SERIAL.write(
+            reinterpret_cast<uint8_t *>(chirp_right_in_buffer_alt[right_in_index++]),
+            sizeof(uint16_t) * num_samples);
+        }
+      }
+    }
+
+
 
   //Serial.print("T");
 

@@ -67,7 +67,7 @@ class BatBot:
         
         # Vendor and product ID of SAMD51 USB Host
         VID = 0x239a
-        PID = 0x8031
+        PID = 0x8020
 
         # Try to detect any M4s by USB IDs
         available_ports = serial.tools.list_ports.comports()
@@ -177,7 +177,7 @@ class BatBot:
         self._start_run()
 
         # Query the M4 status in a loop
-        self._wait_for_run_to_complete()
+        # self._wait_for_run_to_complete()
 
         # Once the status is OK, get the data from the M4
         left_ch = self._get_data(ch=0)
