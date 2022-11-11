@@ -81,6 +81,14 @@ void DMAC_CH_intenset(const uint8_t chnum, const IRQn_Type IRQn, const uint8_t i
     NVIC_EnableIRQ(IRQn);
 }
 
+void DMAC_CH_resume(const uint8_t chnum){
+    
+}
+
+void DMAC_CH_suspend(const uint8_t chnum){
+
+}
+
 void CCL_enable(void){
     CCL->CTRL.reg |= CCL_CTRL_ENABLE;
 }
